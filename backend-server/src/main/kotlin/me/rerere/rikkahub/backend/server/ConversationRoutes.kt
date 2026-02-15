@@ -29,7 +29,6 @@ import me.rerere.rikkahub.backend.core.util.stringValue
 import me.rerere.rikkahub.backend.server.service.ConversationEngine
 import me.rerere.rikkahub.backend.storage.sqlite.repo.ConversationSqliteRepository
 import me.rerere.rikkahub.backend.storage.sqlite.repo.SettingsJsonRepository
-import java.time.Instant
 
 fun Route.registerConversationRoutes(
     settingsRepository: SettingsJsonRepository,
@@ -87,7 +86,7 @@ fun Route.registerConversationRoutes(
 
         post("/{id}/regenerate-title") {
             val conversationId = call.parameters["id"].requireUuid("conversation id")
-            conversationEngine.updateConversationTitle(conversationId, "Conversation ${Instant.now().toString().take(19)}")
+            conversationEngine.regenerateConversationTitle(conversationId)
             call.respond(HttpStatusCode.Accepted, mapOf("status" to "accepted"))
         }
 

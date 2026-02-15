@@ -4,16 +4,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.rikkahub.backend.core.api.BadRequestException
 import me.rerere.rikkahub.backend.core.model.ConversationRecord
 import me.rerere.rikkahub.backend.core.model.MessageNodeRecord
 import me.rerere.rikkahub.backend.core.model.MessageRecord
+import me.rerere.rikkahub.backend.core.util.objectValue
 import me.rerere.rikkahub.backend.core.util.randomId
 import me.rerere.rikkahub.backend.core.util.stringValue
 import me.rerere.rikkahub.backend.storage.sqlite.repo.ConversationSqliteRepository
@@ -29,6 +30,7 @@ data class EngineErrorEvent(
 class ConversationEngine(
     private val conversationRepository: ConversationSqliteRepository,
     private val settingsRepository: SettingsJsonRepository,
+    private val llmGenerator: LlmGenerator = PortableLlmGenerator(),
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val generationJobs = ConcurrentHashMap<String, Job>()
@@ -67,7 +69,7 @@ class ConversationEngine(
         }
         val conversation = ensureConversation(conversationId)
         val now = Instant.now().toEpochMilli()
-        val userMessage = createMessage(role = "USER", parts = parts)
+        val userMessage = createMessage(role = "USER", parts = parts, modelId = null)
         val nextConversation = conversation.copy(
             title = pickConversationTitle(conversation.title, parts),
             messageNodes = conversation.messageNodes + MessageNodeRecord(
@@ -191,46 +193,24 @@ class ConversationEngine(
         if (nodeIndex < 0) {
             throw BadRequestException("Message not found")
         }
+
         val node = conversation.messageNodes[nodeIndex]
         val target = node.messages.find { it.id == messageId } ?: throw BadRequestException("Message not found")
 
-        val regeneratedText = when (target.role.uppercase()) {
-            "ASSISTANT" -> "Regenerated response"
-            "USER" -> "Response to regenerated user message"
-            else -> "Regenerated response"
+        val trimmedNodes = when (target.role.uppercase()) {
+            "ASSISTANT" -> conversation.messageNodes.take(nodeIndex)
+            "USER" -> conversation.messageNodes.take(nodeIndex + 1)
+            else -> conversation.messageNodes.take(nodeIndex + 1)
         }
 
-        val regenerated = createMessage(
-            role = "ASSISTANT",
-            parts = listOf(
-                JsonObject(
-                    mapOf(
-                        "type" to JsonPrimitive("text"),
-                        "text" to JsonPrimitive(regeneratedText),
-                    )
-                )
-            ),
+        val updated = conversation.copy(
+            messageNodes = trimmedNodes,
+            updateAt = Instant.now().toEpochMilli(),
         )
-
-        val updatedNode = if (target.role.uppercase() == "ASSISTANT") {
-            node.copy(
-                messages = node.messages + regenerated,
-                selectIndex = node.messages.size,
-            )
-        } else {
-            node
-        }
-
-        val updatedNodes = conversation.messageNodes.toMutableList()
-        if (target.role.uppercase() == "ASSISTANT") {
-            updatedNodes[nodeIndex] = updatedNode
-        } else {
-            updatedNodes.add(nodeIndex + 1, MessageNodeRecord(id = randomId(), messages = listOf(regenerated), selectIndex = 0))
-        }
-
-        val updated = conversation.copy(messageNodes = updatedNodes, updateAt = Instant.now().toEpochMilli())
         conversationRepository.upsertConversation(updated)
         emitConversationChanged(updated.id, updated.assistantId)
+
+        startAssistantGeneration(updated.id)
     }
 
     suspend fun handleToolApproval(conversationId: String, toolCallId: String, approved: Boolean, reason: String) {
@@ -276,6 +256,18 @@ class ConversationEngine(
         val updated = conversation.copy(messageNodes = updatedNodes, updateAt = Instant.now().toEpochMilli())
         conversationRepository.upsertConversation(updated)
         emitConversationChanged(updated.id, updated.assistantId)
+
+        val hasPendingTools = updatedNodes.any { node ->
+            val selected = node.messages.getOrNull(node.selectIndex) ?: node.messages.firstOrNull()
+            selected?.parts?.any { part ->
+                (part.stringValue("type") ?: "") == "tool" &&
+                    part.objectValue("approvalState")?.stringValue("type") == "pending"
+            } == true
+        }
+
+        if (!hasPendingTools) {
+            startAssistantGeneration(updated.id)
+        }
     }
 
     suspend fun stopGeneration(conversationId: String) {
@@ -303,6 +295,18 @@ class ConversationEngine(
         )
         conversationRepository.upsertConversation(updated)
         emitConversationChanged(updated.id, updated.assistantId)
+    }
+
+    suspend fun regenerateConversationTitle(conversationId: String) {
+        val conversation = ensureConversation(conversationId)
+        val settings = settingsRepository.current()
+
+        val generated = runCatching {
+            llmGenerator.generateTitle(settings, conversation)
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+
+        val fallback = deriveConversationTitle(conversation)
+        updateConversationTitle(conversationId, generated ?: fallback)
     }
 
     suspend fun togglePin(conversationId: String) {
@@ -340,19 +344,13 @@ class ConversationEngine(
                 emitConversationChanged(snapshot.id, snapshot.assistantId)
             }
             try {
-                delay(700)
                 val latest = conversationRepository.getConversationById(conversationId) ?: return@launch
-                val reply = buildAssistantReply(latest)
+                val generation = llmGenerator.generateReply(settingsRepository.current(), latest)
                 val assistantMessage = createMessage(
                     role = "ASSISTANT",
-                    parts = listOf(
-                        JsonObject(
-                            mapOf(
-                                "type" to JsonPrimitive("text"),
-                                "text" to JsonPrimitive(reply),
-                            )
-                        )
-                    ),
+                    parts = generation.parts,
+                    modelId = generation.modelId,
+                    usage = generation.usage,
                 )
 
                 val updated = latest.copy(
@@ -382,34 +380,21 @@ class ConversationEngine(
         _listInvalidateEvents.emit(assistantId)
     }
 
-    private fun buildAssistantReply(conversation: ConversationRecord): String {
-        val userMessage = conversation.messageNodes
-            .asReversed()
-            .firstNotNullOfOrNull { node ->
-                node.messages.firstOrNull { it.role.uppercase() == "USER" }
-            }
-        val userText = userMessage?.parts
-            ?.firstOrNull { part -> (part.stringValue("type") ?: "") == "text" }
-            ?.stringValue("text")
-            ?.trim()
-            .orEmpty()
-        return if (userText.isBlank()) {
-            "Message received"
-        } else {
-            "Echo: $userText"
-        }
-    }
-
-    private fun createMessage(role: String, parts: List<JsonObject>): MessageRecord {
+    private fun createMessage(
+        role: String,
+        parts: List<JsonObject>,
+        modelId: String? = "auto",
+        usage: JsonElement? = null,
+    ): MessageRecord {
         return MessageRecord(
             id = randomId(),
             role = role,
             parts = parts,
             annotations = emptyList(),
             createdAt = Instant.now().toString(),
-            finishedAt = null,
-            modelId = "auto",
-            usage = null,
+            finishedAt = Instant.now().toString(),
+            modelId = modelId,
+            usage = usage,
             translation = null,
         )
     }
@@ -420,5 +405,21 @@ class ConversationEngine(
         val raw = textPart?.stringValue("text")?.trim().orEmpty()
         if (raw.isEmpty()) return "New Conversation"
         return raw.replace(Regex("\\s+"), " ").take(48)
+    }
+
+    private fun deriveConversationTitle(conversation: ConversationRecord): String {
+        val firstText = conversation.messageNodes
+            .asSequence()
+            .mapNotNull { node -> node.messages.getOrNull(node.selectIndex) ?: node.messages.firstOrNull() }
+            .flatMap { message -> message.parts.asSequence() }
+            .firstOrNull { part -> part.stringValue("type") == "text" && !part.stringValue("text").isNullOrBlank() }
+            ?.stringValue("text")
+            ?.trim()
+            .orEmpty()
+
+        if (firstText.isBlank()) {
+            return "Conversation ${Instant.now().toString().take(19)}"
+        }
+        return firstText.replace(Regex("\\s+"), " ").take(48)
     }
 }
