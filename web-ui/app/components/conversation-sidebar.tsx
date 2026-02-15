@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from "react";\n\nimport { Link } from "react-router";
 
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
@@ -123,7 +123,7 @@ const COLOR_THEME_OPTIONS: Array<{
 ];
 
 const LANGUAGE_OPTIONS = [
-  { value: "zh-CN", label: "简体中文" },
+  { value: "zh-CN", label: "绠€浣撲腑鏂? },
   { value: "en-US", label: "English" },
 ] as const;
 
@@ -870,6 +870,19 @@ export function ConversationSidebar({
         />
 
         <div className="flex items-center gap-2">
+          <Button
+            asChild
+            variant="outline"
+            size="icon-sm"
+            className="text-foreground"
+            type="button"
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Link to="/settings">
+              <Settings className="size-4" />
+            </Link>
+          </Button>
           {webAuthEnabled && (
             <Button
               variant="outline"
