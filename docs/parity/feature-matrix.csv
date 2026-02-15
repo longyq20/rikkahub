@@ -1,10 +1,10 @@
-feature_id,feature_name,android_entry,data_model_or_storage,existing_api,webui_status,backend_status,gap_type,priority,acceptance_criteria
+﻿feature_id,feature_name,android_entry,data_model_or_storage,existing_api,webui_status,backend_status,gap_type,priority,acceptance_criteria
 CHAT_001,发送消息,app/service/ChatService.sendMessage,Conversation+MessageNode,/api/conversations/{id}/messages,已实现,部分(真实生成已接入),后端缺失,P0,已接入真实模型生成，待补齐tool/transformers等价行为
 CHAT_002,编辑消息分支,app/service/ChatService.editMessage,MessageNode.selectIndex,/api/conversations/{id}/messages/{messageId}/edit,已实现,部分(编辑后可续跑),后端缺失,P0,编辑后可续跑生成且分支选择正确（真实模型）
 CHAT_003,分支切换,app/service/ChatService.selectMessageNode,MessageNode.selectIndex,/api/conversations/{id}/nodes/{nodeId}/select,已实现,已实现,无,P1,切换后会话详情与列表状态一致
 CHAT_004,再生成,app/service/ChatService.regenerateAtMessage,Conversation nodes,/api/conversations/{id}/regenerate,已实现,部分(再生成为真实模型),后端缺失,P0,再生成为真实模型结果并保持兼容
 CHAT_005,停止生成,app/service/ChatService.stopGeneration,ConversationSession job,/api/conversations/{id}/stop,已实现,已实现,无,P1,停止后isGenerating立即回落
-CHAT_006,工具审批,app/service/ChatService.handleToolApproval,Tool part approvalState,/api/conversations/{id}/tool-approval,已实现,部分(审批后续跑已接通),后端缺失,P0,审批后可正确续跑，真实tool执行链待补齐
+CHAT_006,工具审批,app/service/ChatService.handleToolApproval,Tool part approvalState,/api/conversations/{id}/tool-approval,已实现,部分(审批后可执行approved/auto tool并续跑),后端缺失,P0,审批后触发tool执行并写回output；MCP与模型tool-call自动联动待补齐
 CHAT_007,会话列表SSE,app/web/routes/ConversationRoutes.sse stream,Conversation updateAt,/api/conversations/stream,已实现,已实现,无,P1,invalidate事件触发侧边栏刷新
 CHAT_008,会话详情SSE增量,app/web/routes/ConversationRoutes.sse detail,ConversationDiff,/api/conversations/{id}/stream,已实现,已实现,无,P1,node_update与snapshot语义稳定
 CHAT_009,会话分页搜索,ConversationRepository page/search,Room->SQLite,/api/conversations/paged,已实现,已实现,无,P1,支持query并保持置顶优先+更新时间排序
@@ -21,9 +21,9 @@ FILE_001,上传文件,FilesManager.createChatFiles,data/upload + managed_file,/a
 FILE_002,文件预览访问,FilesManager.get/data path,upload files,/api/files/id/{id} + /api/files/path/{path},已实现,已实现,无,P1,图片/音频/视频/文档可在浏览器加载
 FILE_003,删除文件,FilesManager.delete,managed_file + disk,/api/files/{id},已实现,已实现,无,P1,删除后消息附件不可再访问
 MIG_001,Android备份导入,WebDavSync/S3Sync backup format,settings+db+upload,/api/migration/import,web无独立页(仅API),已实现,前端缺失,P1,导入报告可见并可回滚失败
-MIG_002,备份导出,app/ui/pages/backup,zip exporter,暂无web API,缺失,缺失,前端缺失,P2,支持导出兼容zip供跨端迁移
+MIG_002,备份导出,app/ui/pages/backup,zip exporter,/api/migration/export,缺失,已实现(API),前端缺失,P1,支持导出兼容zip供跨端迁移
 AUTH_001,JWT登录与鉴权,WebApiModule auth-jwt,jwt token,/api/auth/token + Bearer/query,已实现,已实现,无,P1,启用JWT后未登录请求返回401
-EXT_001,Memory管理,app/data/repository/MemoryRepository,db memory table,暂无web API,缺失,缺失,前端缺失,P2,支持查看/新增/删除memory并参与生成
+EXT_001,Memory管理,app/data/repository/MemoryRepository,db memory table,暂无web API,缺失,部分(memory_tool后端存储/执行已接通),前端缺失,P2,支持查看/新增/删除memory并参与生成
 EXT_002,Prompts页面,app/ui/pages/prompts,settings/injections,暂无web API,缺失,缺失,前端缺失,P2,Web端可管理提示词模板
 EXT_003,Translator业务,app/ui/pages/translator + ChatService.translateMessage,conversation.translation,暂无web API,缺失,缺失,前端缺失,P2,支持消息翻译与流式回写
 EXT_004,Image Generation,app/ui/pages/imggen,gen_media table,暂无web API,缺失,缺失,前端缺失,P2,支持图片生成任务与结果管理
@@ -32,3 +32,4 @@ EXT_006,Log/Debug页面,app/ui/pages/log+debug,app logs,暂无web API,缺失,缺
 EXT_007,TTS能力,app/ui/pages/setting/SettingTTSPage,tts module,暂无web API,缺失,缺失,平台差异需替代实现,P2,提供Web等价TTS播放/配置
 EXT_008,Share能力,app/ui/pages/share,Android intent,暂无web API,缺失,缺失,平台差异需替代实现,P2,定义Web可替代分享流程
 EXT_009,WebView页面,app/ui/pages/webview,embedded webview,不适用于web,不适用,不适用,平台差异需替代实现,P2,明确降级策略并文档化
+

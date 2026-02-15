@@ -1,9 +1,10 @@
 # 06 Known Gaps
 
 ## P0（优先收敛）
-1. Tool 执行能力缺口
-- 现状：已支持审批状态更新与续跑，但未接入真实 tool 调用/结果回写链路。
-- 影响：与 Android `ChatService` 的工具能力仍不等价。
+1. Tool/MCP 能力仍有剩余缺口
+- 现状：已支持 approved/auto tool 执行与 output 回写，审批后可续跑；已接入 `get_time_info`、`memory_tool`、`search_web`、`scrape_web`；已支持 OpenAI `tool_calls -> tool part` 映射，且会在后续请求中以 `role=tool` 回填已执行 tool result；已支持 `mcp__*` 工具的广告与执行（`sse`/`streamable_http`）。
+- 剩余：MCP 的“服务端 tools 同步(listTools) + 配置自动补全/修剪”尚未实现；MCP 连接复用/重连策略与观测仍简化；非 OpenAI provider（Claude/Google）的工具调用协议仍未实现。
+- 影响：与 Android `ChatService` 的完整工具能力仍存在差距，尤其是 MCP 运维体验与跨 provider 一致性。
 
 2. 契约测试覆盖仍不完整
 - 现状：已覆盖 conversations/settings/SSE 核心路径；files/auth/migration 边界与失败路径仍不足。
@@ -28,4 +29,4 @@
 
 ## 结论
 - “占位生成”与“测试空白”两个阶段性核心阻塞已显著收敛。
-- 当前真正阻塞完整移植的是业务等价深度（tool/runtime）与测试覆盖广度（全域契约）。
+- 当前阻塞完整移植的重点转为：MCP 运维体验（同步/重连/可观测性）与全域契约测试广度（覆盖更多设置域与失败路径）。
