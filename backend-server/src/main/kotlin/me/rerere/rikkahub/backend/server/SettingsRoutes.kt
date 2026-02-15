@@ -143,6 +143,11 @@ fun Route.registerSettingsRoutes(settingsRepository: SettingsJsonRepository) {
             call.respond(HttpStatusCode.OK, mapOf("status" to "ok"))
         }
 
+        post("/replace") {
+            val value = call.receive<JsonObject>()
+            settingsRepository.replaceAll(value)
+            call.respond(HttpStatusCode.OK, mapOf("status" to "ok"))
+        }
         sse("/stream") {
             heartbeat { period = 15.seconds }
             settingsRepository.settingsFlow.collect { settings ->
