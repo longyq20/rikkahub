@@ -37,4 +37,5 @@ dependencies {
     runtimeOnly(libs.slf4j.simple)
 
     testImplementation(libs.junit)
+    testImplementation(libs.ktor.server.test.host)
 }

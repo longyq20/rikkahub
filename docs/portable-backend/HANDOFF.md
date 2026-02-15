@@ -1,13 +1,22 @@
 # HANDOFF
 
 ## 一页结论
-- 可移植后端骨架已落地，`/api` 主链路与 web-ui 已打通。
-- 当前阶段完成了文档归档、运行基线固化、提交切分准备。
-- 下一步重点不是继续搭脚手架，而是做 Android 全业务能力对照与真实业务迁移。
+- 阶段 A（三段提交）已完成：后端模块落地、运行/部署资产落地、归档文档落地。
+- 阶段 B1 已推进到“真实生成 + 契约测试”阶段：`ConversationEngine` 不再是 echo 占位，已接入多 provider 生成与标题再生。
+- `/api` 主链路与 web-ui 现有页面可联通，下一步重点转为 Android 全业务能力对照与缺口闭环。
+
+## 最新基线（2026-02-16）
+- 已完成提交：
+  - `4db9847b`：后端模块与 API 主链路
+  - `be792908`：运行脚本、Docker、忽略规则
+  - `542fda1d`：阶段归档文档与 parity 初版矩阵
+  - `acca9e02`：真实模型生成接入 + 单元测试
+- 当前工作区新增：`backend-server` API/SSE 集成契约测试（4 个测试用例）。
 
 ## 关键入口文件
 - 服务入口：`backend-server/src/main/kotlin/me/rerere/rikkahub/backend/server/Main.kt`
 - 会话引擎：`backend-server/src/main/kotlin/me/rerere/rikkahub/backend/server/service/ConversationEngine.kt`
+- 生成器：`backend-server/src/main/kotlin/me/rerere/rikkahub/backend/server/service/LlmGenerator.kt`
 - 会话路由：`backend-server/src/main/kotlin/me/rerere/rikkahub/backend/server/ConversationRoutes.kt`
 - SSE 路由：`backend-server/src/main/kotlin/me/rerere/rikkahub/backend/server/ConversationSseRoutes.kt`
 - 设置路由：`backend-server/src/main/kotlin/me/rerere/rikkahub/backend/server/SettingsRoutes.kt`
@@ -27,10 +36,10 @@
 Invoke-RestMethod http://127.0.0.1:8080/api/system/health
 ```
 
-## 当前最大未决事项
-1. 用 Android `ChatService` 真实能力替换 `ConversationEngine` 占位逻辑。
-2. 建立后端单元/集成测试体系，覆盖核心 `/api` 契约与 SSE。
-3. 完成 Android 功能全盘点并在 WebUI/Backend 中逐项闭环。
+## 当前最高优先未决
+1. 工具执行链未完整迁移：当前已支持 `tool approval -> resume`，但缺少真实 tool 调用与结果回写闭环。
+2. API 契约测试仍需扩面：已覆盖 settings/conversations/SSE 核心路径，仍需补齐 files/auth/migration 失败路径矩阵。
+3. Android 全业务对照仍需持续闭环：B2 扩展能力（memory/prompts/translator/imggen/log/debug/TTS/share）尚未进入实现。
 
 ## 文档导航
 - 当前状态：`docs/portable-backend/01-current-state.md`

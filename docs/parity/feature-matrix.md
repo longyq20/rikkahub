@@ -19,19 +19,23 @@
 - `契约不一致`
 - `平台差异需替代实现`
 
-## 状态总览（当前）
-- 聊天主链路：路由与交互已接通，但生成引擎仍是占位实现。
-- 设置主链路：WebUI 与 Backend 已基本对齐。
-- 文件与基础迁移：上传/访问/删除与导入 API 已具备。
+## 状态总览（2026-02-16）
+- 聊天主链路：已从占位推进到真实模型生成，SSE 主事件契约已自动化验证。
+- 设置主链路：WebUI 与 Backend 已对齐，具备流式同步。
+- 文件与迁移：基础 API 已具备，边界测试与前端入口仍需补齐。
 - 扩展能力：memory/prompts/translator/imggen/log/debug/TTS/share 仍主要缺失。
 
 ## 分阶段实施建议
 
 ### Stage B1（核心可用全量）
-- 完成聊天生成引擎真实迁移（替换 echo）。
-- 补齐 tool approval -> continue generation 的完整状态机。
-- 做完 `/api` + SSE 自动化契约测试。
-- 完成迁移导入前端入口和导入报告展示。
+- 已完成：
+  - 真实生成链路接入（替换 echo）。
+  - tool approval 后续跑闭环。
+  - 首批 `/api` + SSE 自动化契约测试。
+- 待完成：
+  - tool 真实执行链与结果回写。
+  - files/auth/migration 失败路径自动化。
+  - 迁移导入前端入口与导入报告展示。
 
 ### Stage B2（扩展能力全量）
 - 按矩阵逐项补齐 memory、prompts、translator、imggen、history、log/debug、TTS、share。
@@ -40,4 +44,4 @@
 ## 使用方式
 1. 每次迭代先更新 `feature-matrix.csv` 的状态与差距字段。
 2. 再提交对应代码与测试证据。
-3. 发布前确保所有 `P0/P1` 项状态达到“已实现 + 已验收”。
+3. 发布前确保所有 `P0/P1` 项达到“已实现 + 已验收”或明确风险豁免。

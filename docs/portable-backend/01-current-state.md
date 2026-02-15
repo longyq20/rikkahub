@@ -1,19 +1,17 @@
 # 01 Current State
 
 ## 目标与范围
-本阶段目标是把 Android 内嵌 Web 服务重写为可在 Windows/Linux 直接运行、并可容器化部署的独立后端。当前文档记录的是“阶段 A 收口”时点的真实状态，不包含后续功能扩展的假设实现。
+目标是把 Android 内嵌 Web 服务重写为可在 Windows/Linux 直接运行、并可容器化部署的独立后端；保持现有 web-ui `/api` 契约兼容并支持 Android 历史数据导入。
 
 ## 已完成内容
 
 ### 模块与构建接入
 - 新增模块：`backend-core`、`backend-storage-sqlite`、`backend-migration`、`backend-server`。
-- 根工程已接入新模块：`settings.gradle.kts`。
-- 根构建脚本新增 JVM 插件声明：`build.gradle.kts`。
-- 版本目录新增后端依赖与插件：`gradle/libs.versions.toml`。
+- 根工程已接入模块与依赖版本目录：`settings.gradle.kts`、`gradle/libs.versions.toml`。
 
 ### 后端能力
 - 后端主入口：`backend-server/src/main/kotlin/me/rerere/rikkahub/backend/server/Main.kt`。
-- 当前已覆盖 web-ui 主链路接口：
+- 覆盖 web-ui 主链路接口：
   - `/api/auth/token`
   - `/api/settings/*` + `/api/settings/stream`
   - `/api/conversations/*` + `/api/conversations/stream` + `/api/conversations/{id}/stream`
@@ -22,35 +20,36 @@
   - `/api/assets/*`
   - `/api/system/health`、`/api/system/info`
   - `/api/migration/import`
-- SSE 事件类型保持兼容：
+- SSE 事件兼容：
   - settings：`update`
   - conversation list：`invalidate`
   - conversation detail：`snapshot`、`node_update`、`error`
 
+### 生成链路（已从占位推进）
+- `ConversationEngine` 已接入真实生成器：`backend-server/.../LlmGenerator.kt`。
+- 已支持 provider 类型：OpenAI-compatible、Claude、Google。
+- 标题再生成已切换为模型生成 + fallback。
+- 再生成与 tool approval 已接入续跑逻辑。
+
 ### 存储与迁移
-- 默认数据目录：`data/`
-  - `settings.json`
-  - `rikka_hub.db`（及 `-wal`/`-shm`）
-  - `upload/*`
-- 已实现 Android 备份包导入（zip）：`settings.json + rikka_hub.db + upload/*`。
-- 迁移失败支持回滚到导入前快照。
+- 默认数据目录：`data/settings.json`、`data/rikka_hub.db`、`data/upload/*`。
+- Android 备份包导入（zip）已可用：`settings.json + rikka_hub.db + upload/*`。
+- 导入失败支持回滚。
 
 ### 运行与部署资产
 - Docker 多阶段构建：`Dockerfile`。
 - 启动脚本：`run-backend.ps1`、`run-backend.sh`。
-- 后端独立 settings 文件：`settings.backend.gradle.kts`（用于精简后端构建场景）。
 
-## 当前已验证结论
-- `:backend-server:compileKotlin` 可通过。
-- 后端服务可启动，并可响应 `GET /api/system/health`。
-- Web UI 当前路由范围集中在聊天工作流（`home`/`conversations`/`c/:id`）。
+## 当前验证结论（2026-02-16）
+- `:backend-server:test` 通过（含新增 API/SSE 集成测试）。
+- `:backend-core:test`、`:backend-storage-sqlite:test` 通过。
+- 本地真实 provider 烟测通过：后端在临时配置下成功返回 `portable-smoke-ok`。
 
-## 关键差距（阶段 A 结束时）
-- `ConversationEngine` 仍为占位生成（echo/模拟回复），尚未迁移完整 provider pipeline。
-- 新后端模块自动化测试基本为空（`NO-SOURCE`）。
-- 需要继续完成 Android 全业务盘点并映射到 WebUI/Backend 的逐项差距闭环。
+## 当前主要差距
+1. Tool 执行链仍未完整迁移（目前仅审批与续跑闭环）。
+2. API 契约自动化仍需扩面（files/auth/migration 边界与失败路径）。
+3. Android 扩展能力（memory/prompts/translator/imggen/history/log/debug/TTS/share）尚未移植。
 
-## 本阶段收口动作
-- 修复 `run-backend` 脚本中的不兼容参数，统一使用 `:backend-server:run`。
-- 修复 Gradle Wrapper 的本地绝对路径依赖，恢复为标准发行地址。
-- 更新 `.gitignore`，忽略本地离线压缩包与临时运行产物。
+## 本阶段结论
+- 阻塞点已从“脚手架/启动”转向“业务等价与测试覆盖深度”。
+- 继续推进优先级：先 B1 深度对齐，再 B2 扩展能力。

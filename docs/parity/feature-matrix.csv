@@ -1,14 +1,14 @@
 feature_id,feature_name,android_entry,data_model_or_storage,existing_api,webui_status,backend_status,gap_type,priority,acceptance_criteria
-CHAT_001,发送消息,app/service/ChatService.sendMessage,Conversation+MessageNode,/api/conversations/{id}/messages,已实现,部分(占位生成),后端缺失,P0,接入真实模型生成并保持SSE增量更新
-CHAT_002,编辑消息分支,app/service/ChatService.editMessage,MessageNode.selectIndex,/api/conversations/{id}/messages/{messageId}/edit,已实现,部分(占位生成),后端缺失,P0,编辑后可续跑生成且分支选择正确
+CHAT_001,发送消息,app/service/ChatService.sendMessage,Conversation+MessageNode,/api/conversations/{id}/messages,已实现,部分(真实生成已接入),后端缺失,P0,已接入真实模型生成，待补齐tool/transformers等价行为
+CHAT_002,编辑消息分支,app/service/ChatService.editMessage,MessageNode.selectIndex,/api/conversations/{id}/messages/{messageId}/edit,已实现,部分(编辑后可续跑),后端缺失,P0,编辑后可续跑生成且分支选择正确（真实模型）
 CHAT_003,分支切换,app/service/ChatService.selectMessageNode,MessageNode.selectIndex,/api/conversations/{id}/nodes/{nodeId}/select,已实现,已实现,无,P1,切换后会话详情与列表状态一致
-CHAT_004,再生成,app/service/ChatService.regenerateAtMessage,Conversation nodes,/api/conversations/{id}/regenerate,已实现,部分(占位生成),后端缺失,P0,再生成为真实模型结果并保持兼容
+CHAT_004,再生成,app/service/ChatService.regenerateAtMessage,Conversation nodes,/api/conversations/{id}/regenerate,已实现,部分(再生成为真实模型),后端缺失,P0,再生成为真实模型结果并保持兼容
 CHAT_005,停止生成,app/service/ChatService.stopGeneration,ConversationSession job,/api/conversations/{id}/stop,已实现,已实现,无,P1,停止后isGenerating立即回落
-CHAT_006,工具审批,app/service/ChatService.handleToolApproval,Tool part approvalState,/api/conversations/{id}/tool-approval,已实现,部分(仅状态更新),后端缺失,P0,审批后可正确续跑并输出结果
+CHAT_006,工具审批,app/service/ChatService.handleToolApproval,Tool part approvalState,/api/conversations/{id}/tool-approval,已实现,部分(审批后续跑已接通),后端缺失,P0,审批后可正确续跑，真实tool执行链待补齐
 CHAT_007,会话列表SSE,app/web/routes/ConversationRoutes.sse stream,Conversation updateAt,/api/conversations/stream,已实现,已实现,无,P1,invalidate事件触发侧边栏刷新
 CHAT_008,会话详情SSE增量,app/web/routes/ConversationRoutes.sse detail,ConversationDiff,/api/conversations/{id}/stream,已实现,已实现,无,P1,node_update与snapshot语义稳定
 CHAT_009,会话分页搜索,ConversationRepository page/search,Room->SQLite,/api/conversations/paged,已实现,已实现,无,P1,支持query并保持置顶优先+更新时间排序
-CHAT_010,会话标题再生成,ChatService.generateTitle,Conversation.title,/api/conversations/{id}/regenerate-title,已实现,部分(占位标题),后端缺失,P1,标题由模型生成且支持失败回退
+CHAT_010,会话标题再生成,ChatService.generateTitle,Conversation.title,/api/conversations/{id}/regenerate-title,已实现,已实现(模型生成+回退),无,P1,标题由模型生成且支持失败回退
 SET_001,切换Assistant,SettingsStore.updateAssistant,settings.json,/api/settings/assistant,已实现,已实现,无,P1,切换后列表与详情上下文同步
 SET_002,切换模型,SettingsStore assistant.chatModelId,settings.json,/api/settings/assistant/model,已实现,已实现,无,P1,模型切换即时生效
 SET_003,thinking budget,SettingsStore assistant.thinkingBudget,settings.json,/api/settings/assistant/thinking-budget,已实现,已实现,无,P1,null与数字语义兼容

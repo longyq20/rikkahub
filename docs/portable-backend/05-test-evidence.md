@@ -1,36 +1,41 @@
 # 05 Test Evidence
 
 ## 记录时间
-- 文档整理时间：2026-02-16（UTC+08:00）。
+- 更新时间：2026-02-16（UTC+08:00）。
 
-## 构建与运行证据
+## 构建与测试
 
-### Kotlin 编译
-- 在线 wrapper 命令（`./gradlew.bat :backend-server:compileKotlin --no-daemon`）在当前网络环境下载 Gradle 发行包超时。
-- 离线替代命令：
-  - `./.tools/gradle-9.1.0/bin/gradle.bat :backend-server:compileKotlin --no-daemon`
-- 结果：通过（`BUILD SUCCESSFUL`）。
-
-### 模块测试任务
+### 后端测试（本轮）
 - 命令：
-  - `./.tools/gradle-9.1.0/bin/gradle.bat :backend-core:test :backend-storage-sqlite:test :backend-migration:test :backend-server:test --no-daemon`
-- 结果：通过（任务可执行）。
-- 现状：新增模块测试均为 `NO-SOURCE`。
+  - `./.tools/gradle-9.1.0/bin/gradle.bat :backend-server:test --no-daemon`
+- 结果：通过。
+- 覆盖：
+  - `ConversationEngineTest`（生成/再生/tool approval 续跑）
+  - `ApiContractIntegrationTest`（`/api/conversations`、`/api/settings`、SSE 事件契约）
 
-### 服务健康检查
-- 命令：`Invoke-RestMethod http://127.0.0.1:18080/api/system/health | ConvertTo-Json -Compress`
+### 相关模块测试
+- 命令：
+  - `./.tools/gradle-9.1.0/bin/gradle.bat :backend-core:test :backend-storage-sqlite:test --no-daemon`
+- 结果：通过。
+
+## 运行验证
+
+### 健康检查
+- 接口：`GET /api/system/health`
 - 结果：`{"status":"ok"}`。
 
-### 监听进程与端口（示例时点）
-- 命令：`netstat -ano | Select-String ":18080"`
-- 结果：`LISTENING`，`PID=22936`。
-- 命令：`Get-Process -Id 22936 | Select Id,ProcessName,StartTime,Path`
-- 结果：`java`，JDK 路径为 `C:\Users\yongqi\.jdk\openjdk-17\jdk-17.0.0.1\bin\java.exe`。
+### 真实 provider 烟测（临时实例）
+- 输入：OpenAI-compatible `baseUrl/key/model`（用户提供）。
+- 场景：`POST /api/conversations/{id}/messages`，轮询会话详情读取 assistant 文本。
+- 结果：成功返回 `portable-smoke-ok`。
 
-## API/SSE 烟测（前序会话）
-- 已执行后端接口烟测并覆盖 web-ui 主链路。
-- 结果：通过（21/21）。
+## 调试结论（本轮关键坑位）
+1. Windows PowerShell 写入 `settings.json` 时若使用带 BOM 的 UTF-8，后端可能回落默认 settings。
+- 规避：使用 `UTF8Encoding(false)` 写入无 BOM。
 
-## 风险结论
-- 主要风险不在启动层，而在生成引擎占位实现与测试覆盖缺口。
-- 阶段 B 应将“真实生成 pipeline + 自动化测试”作为最高优先级任务。
+2. 手工构造 JSON 若把 `\"` 作为字面量写入，会导致请求体反序列化失败（500）。
+- 规避：统一用 `ConvertTo-Json` 生成请求体。
+
+## 当前测试缺口
+- 仍需补齐：`/api/files`、`/api/auth`、`/api/migration/import` 的失败路径与边界契约测试。
+- 仍需补齐：跨平台（Windows/Linux）与 Docker 场景下的自动化回归流水线。
