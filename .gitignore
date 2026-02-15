@@ -4,6 +4,7 @@
 /.idea
 .DS_Store
 /build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
@@ -11,3 +12,13 @@ local.properties
 .cursor
 .history
 .kotlin
+
+# Portable backend local artifacts
+.tmp-backend-data/
+.tmp-backend-run.log
+data/
+
+# Local offline toolchain archives
+openjdk-*.zip
+gradle-*-bin.zip
+.tools/
