@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.backend.storage.sqlite.db
+﻿package me.rerere.rikkahub.backend.storage.sqlite.db
 
 import me.rerere.rikkahub.backend.storage.sqlite.BackendPaths
 import java.nio.file.Files
@@ -80,6 +80,17 @@ class SqliteDatabase(
                 """.trimIndent()
             )
             statement.execute("CREATE INDEX IF NOT EXISTS idx_managed_files_folder ON managed_files(folder)")
+
+            statement.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memoryentity (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    assistant_id TEXT NOT NULL,
+                    content TEXT NOT NULL
+                )
+                """.trimIndent()
+            )
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_memoryentity_assistant ON memoryentity(assistant_id)")
         }
     }
 }

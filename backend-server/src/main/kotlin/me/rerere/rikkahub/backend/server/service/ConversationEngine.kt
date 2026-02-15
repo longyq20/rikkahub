@@ -1,5 +1,6 @@
-package me.rerere.rikkahub.backend.server.service
+﻿package me.rerere.rikkahub.backend.server.service
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -7,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -14,6 +16,7 @@ import me.rerere.rikkahub.backend.core.api.BadRequestException
 import me.rerere.rikkahub.backend.core.model.ConversationRecord
 import me.rerere.rikkahub.backend.core.model.MessageNodeRecord
 import me.rerere.rikkahub.backend.core.model.MessageRecord
+import me.rerere.rikkahub.backend.core.util.arrayValue
 import me.rerere.rikkahub.backend.core.util.objectValue
 import me.rerere.rikkahub.backend.core.util.randomId
 import me.rerere.rikkahub.backend.core.util.stringValue
@@ -31,6 +34,7 @@ class ConversationEngine(
     private val conversationRepository: ConversationSqliteRepository,
     private val settingsRepository: SettingsJsonRepository,
     private val llmGenerator: LlmGenerator = PortableLlmGenerator(),
+    private val toolExecutor: ToolExecutor = NoopToolExecutor,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val generationJobs = ConcurrentHashMap<String, Job>()
@@ -257,15 +261,8 @@ class ConversationEngine(
         conversationRepository.upsertConversation(updated)
         emitConversationChanged(updated.id, updated.assistantId)
 
-        val hasPendingTools = updatedNodes.any { node ->
-            val selected = node.messages.getOrNull(node.selectIndex) ?: node.messages.firstOrNull()
-            selected?.parts?.any { part ->
-                (part.stringValue("type") ?: "") == "tool" &&
-                    part.objectValue("approvalState")?.stringValue("type") == "pending"
-            } == true
-        }
-
-        if (!hasPendingTools) {
+        val toolState = analyzeToolState(updated)
+        if (!toolState.hasPendingTools) {
             startAssistantGeneration(updated.id)
         }
     }
@@ -344,25 +341,8 @@ class ConversationEngine(
                 emitConversationChanged(snapshot.id, snapshot.assistantId)
             }
             try {
-                val latest = conversationRepository.getConversationById(conversationId) ?: return@launch
-                val generation = llmGenerator.generateReply(settingsRepository.current(), latest)
-                val assistantMessage = createMessage(
-                    role = "ASSISTANT",
-                    parts = generation.parts,
-                    modelId = generation.modelId,
-                    usage = generation.usage,
-                )
-
-                val updated = latest.copy(
-                    messageNodes = latest.messageNodes + MessageNodeRecord(
-                        id = randomId(),
-                        messages = listOf(assistantMessage),
-                        selectIndex = 0,
-                    ),
-                    updateAt = Instant.now().toEpochMilli(),
-                )
-                conversationRepository.upsertConversation(updated)
-                emitConversationChanged(updated.id, updated.assistantId)
+                runGenerationLoop(conversationId)
+            } catch (_: CancellationException) {
             } catch (t: Throwable) {
                 emitError(conversationId, t.message ?: "Generation failed")
             } finally {
@@ -373,6 +353,140 @@ class ConversationEngine(
             }
         }
         generationJobs[conversationId] = job
+    }
+
+    private suspend fun runGenerationLoop(conversationId: String) {
+        repeat(MAX_TOOL_CHAIN_STEPS) { step ->
+            var latest = conversationRepository.getConversationById(conversationId) ?: return
+            val settings = settingsRepository.current()
+
+            val execution = executeRunnableTools(settings, latest)
+            if (execution.executedAny) {
+                latest = execution.updatedConversation.copy(updateAt = Instant.now().toEpochMilli())
+                conversationRepository.upsertConversation(latest)
+                emitConversationChanged(latest.id, latest.assistantId)
+            }
+
+            if (execution.hasPendingTools) {
+                return
+            }
+            if (execution.hasRunnableTools && !execution.executedAny) {
+                emitError(conversationId, "Tool execution pending but no executable tool produced output")
+                return
+            }
+
+            val generation = llmGenerator.generateReply(settings, latest)
+            val assistantMessage = createMessage(
+                role = "ASSISTANT",
+                parts = generation.parts,
+                modelId = generation.modelId,
+                usage = generation.usage,
+            )
+
+            val updated = latest.copy(
+                messageNodes = latest.messageNodes + MessageNodeRecord(
+                    id = randomId(),
+                    messages = listOf(assistantMessage),
+                    selectIndex = 0,
+                ),
+                updateAt = Instant.now().toEpochMilli(),
+            )
+            conversationRepository.upsertConversation(updated)
+            emitConversationChanged(updated.id, updated.assistantId)
+
+            val stateAfterGeneration = analyzeToolState(updated)
+            if (stateAfterGeneration.hasPendingTools) {
+                return
+            }
+            if (!stateAfterGeneration.hasRunnableTools) {
+                return
+            }
+
+            if (step == MAX_TOOL_CHAIN_STEPS - 1) {
+                emitError(conversationId, "Tool chain loop limit reached")
+            }
+        }
+    }
+
+    private suspend fun executeRunnableTools(settings: JsonObject, conversation: ConversationRecord): ToolExecutionResult {
+        var executedAny = false
+
+        val updatedNodes = conversation.messageNodes.map { node ->
+            if (node.messages.isEmpty()) {
+                return@map node
+            }
+
+            val selectedIndex = node.selectIndex.coerceIn(0, node.messages.lastIndex)
+            val updatedMessages = node.messages.mapIndexed { messageIndex, message ->
+                if (messageIndex != selectedIndex) {
+                    return@mapIndexed message
+                }
+
+                val updatedParts = message.parts.map { part ->
+                    if ((part.stringValue("type") ?: "") != "tool") {
+                        return@map part
+                    }
+
+                    val output = part.arrayValue("output")
+                    if (output != null && output.isNotEmpty()) {
+                        return@map part
+                    }
+
+                    val approvalType = part.objectValue("approvalState")?.stringValue("type") ?: "auto"
+                    if (approvalType != "auto" && approvalType != "approved") {
+                        return@map part
+                    }
+
+                    val toolName = part.stringValue("toolName") ?: "tool"
+                    val input = part.stringValue("input").orEmpty()
+                    val toolOutput = toolExecutor.execute(settings, conversation.assistantId, toolName, input)
+                    executedAny = true
+
+                    JsonObject(
+                        part.toMutableMap().apply {
+                            this["output"] = JsonArray(toolOutput)
+                        }
+                    )
+                }
+
+                message.copy(parts = updatedParts)
+            }
+
+            node.copy(messages = updatedMessages)
+        }
+
+        val updatedConversation = conversation.copy(messageNodes = updatedNodes)
+        val state = analyzeToolState(updatedConversation)
+        return ToolExecutionResult(
+            updatedConversation = updatedConversation,
+            executedAny = executedAny,
+            hasPendingTools = state.hasPendingTools,
+            hasRunnableTools = state.hasRunnableTools,
+        )
+    }
+
+    private fun analyzeToolState(conversation: ConversationRecord): ToolState {
+        var hasPending = false
+        var hasRunnable = false
+
+        conversation.messageNodes.forEach { node ->
+            val selected = node.messages.getOrNull(node.selectIndex) ?: node.messages.firstOrNull() ?: return@forEach
+            selected.parts.forEach { part ->
+                if ((part.stringValue("type") ?: "") != "tool") return@forEach
+
+                val output = part.arrayValue("output")
+                if (output != null && output.isNotEmpty()) {
+                    return@forEach
+                }
+
+                when (part.objectValue("approvalState")?.stringValue("type") ?: "auto") {
+                    "pending" -> hasPending = true
+                    "auto", "approved" -> hasRunnable = true
+                }
+            }
+        }
+
+        return ToolState(hasPendingTools = hasPending, hasRunnableTools = hasRunnable)
     }
 
     private suspend fun emitConversationChanged(conversationId: String, assistantId: String) {
@@ -421,5 +535,21 @@ class ConversationEngine(
             return "Conversation ${Instant.now().toString().take(19)}"
         }
         return firstText.replace(Regex("\\s+"), " ").take(48)
+    }
+
+    private data class ToolExecutionResult(
+        val updatedConversation: ConversationRecord,
+        val executedAny: Boolean,
+        val hasPendingTools: Boolean,
+        val hasRunnableTools: Boolean,
+    )
+
+    private data class ToolState(
+        val hasPendingTools: Boolean,
+        val hasRunnableTools: Boolean,
+    )
+
+    private companion object {
+        const val MAX_TOOL_CHAIN_STEPS = 8
     }
 }

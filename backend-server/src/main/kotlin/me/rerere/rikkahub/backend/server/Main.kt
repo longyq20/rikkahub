@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.backend.server
+﻿package me.rerere.rikkahub.backend.server
 
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -21,12 +21,15 @@ import io.ktor.server.sse.SSE
 import me.rerere.rikkahub.backend.core.api.ApiException
 import me.rerere.rikkahub.backend.core.api.ErrorResponse
 import me.rerere.rikkahub.backend.core.json.AppJson
+import me.rerere.rikkahub.backend.migration.MigrationExporter
 import me.rerere.rikkahub.backend.migration.MigrationImporter
 import me.rerere.rikkahub.backend.server.service.ConversationEngine
+import me.rerere.rikkahub.backend.server.service.PortableToolExecutor
 import me.rerere.rikkahub.backend.storage.sqlite.BackendPaths
 import me.rerere.rikkahub.backend.storage.sqlite.db.SqliteDatabase
 import me.rerere.rikkahub.backend.storage.sqlite.repo.ConversationSqliteRepository
 import me.rerere.rikkahub.backend.storage.sqlite.repo.ManagedFileSqliteRepository
+import me.rerere.rikkahub.backend.storage.sqlite.repo.MemorySqliteRepository
 import me.rerere.rikkahub.backend.storage.sqlite.repo.SettingsJsonRepository
 
 fun main() {
@@ -42,8 +45,11 @@ fun Application.rikkaBackendModule(config: ServerConfig = ServerConfig.fromEnvir
     val conversationRepository = ConversationSqliteRepository(sqliteDatabase)
     val fileRepository = ManagedFileSqliteRepository(paths, sqliteDatabase)
     val settingsRepository = SettingsJsonRepository(paths, config.jwtEnabled, config.accessPassword)
+    val memoryRepository = MemorySqliteRepository(sqliteDatabase)
     val migrationImporter = MigrationImporter(paths, conversationRepository, fileRepository, settingsRepository)
-    val conversationEngine = ConversationEngine(conversationRepository, settingsRepository)
+    val migrationExporter = MigrationExporter(paths)
+    val toolExecutor = PortableToolExecutor(memoryRepository)
+    val conversationEngine = ConversationEngine(conversationRepository, settingsRepository, toolExecutor = toolExecutor)
 
     install(ContentNegotiation) { json(AppJson) }
     install(DefaultHeaders)
@@ -89,17 +95,19 @@ fun Application.rikkaBackendModule(config: ServerConfig = ServerConfig.fromEnvir
                     registerConversationRoutes(settingsRepository, conversationRepository, conversationEngine)
                     registerFileRoutes(config, fileRepository)
                     registerAssetsRoutes(config)
-                    registerMigrationRoutes(migrationImporter)
+                    registerMigrationRoutes(migrationImporter, migrationExporter)
                 }
             } else {
                 registerSettingsRoutes(settingsRepository)
                 registerConversationRoutes(settingsRepository, conversationRepository, conversationEngine)
                 registerFileRoutes(config, fileRepository)
                 registerAssetsRoutes(config)
-                registerMigrationRoutes(migrationImporter)
+                registerMigrationRoutes(migrationImporter, migrationExporter)
             }
         }
 
         registerStaticWeb(config)
     }
 }
+
+

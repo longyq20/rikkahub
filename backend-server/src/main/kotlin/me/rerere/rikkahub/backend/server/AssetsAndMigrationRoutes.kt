@@ -1,11 +1,13 @@
-package me.rerere.rikkahub.backend.server
+﻿package me.rerere.rikkahub.backend.server
 
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -13,6 +15,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import me.rerere.rikkahub.backend.core.api.BadRequestException
 import me.rerere.rikkahub.backend.core.api.NotFoundException
+import me.rerere.rikkahub.backend.migration.MigrationExporter
 import me.rerere.rikkahub.backend.migration.MigrationImporter
 import java.nio.file.Files
 
@@ -32,8 +35,22 @@ fun Route.registerAssetsRoutes(config: ServerConfig) {
     }
 }
 
-fun Route.registerMigrationRoutes(importer: MigrationImporter) {
+fun Route.registerMigrationRoutes(importer: MigrationImporter, exporter: MigrationExporter) {
     route("/migration") {
+        get("/export") {
+            val payload = exporter.exportBackup()
+            val timestamp = System.currentTimeMillis()
+            call.response.header(
+                HttpHeaders.ContentDisposition,
+                "attachment; filename=\"rikka-backup-$timestamp.zip\"",
+            )
+            call.respondBytes(
+                bytes = payload,
+                contentType = ContentType.Application.Zip,
+                status = HttpStatusCode.OK,
+            )
+        }
+
         post("/import") {
             val multipart = call.receiveMultipart()
             var zipBytes: ByteArray? = null

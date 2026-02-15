@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.backend.core.model
+﻿package me.rerere.rikkahub.backend.core.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -54,7 +54,12 @@ data class ManagedFileRecord(
     val createdAt: Long,
     val updatedAt: Long,
 )
-
+@Serializable
+data class AssistantMemoryRecord(
+    val id: Int,
+    val assistantId: String,
+    val content: String,
+)
 fun ConversationRecord.toListDto(isGenerating: Boolean = false): ConversationListDto =
     ConversationListDto(
         id = id,

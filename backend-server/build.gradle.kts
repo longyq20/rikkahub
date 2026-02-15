@@ -19,6 +19,11 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.modelcontextprotocol.kotlin.sdk)
+
 
     implementation(libs.ktor.server.default.headers)
     implementation(libs.ktor.server.conditional.headers)
@@ -34,8 +39,10 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
 
     implementation(libs.java.jwt)
+    implementation(libs.jsoup)
     runtimeOnly(libs.slf4j.simple)
 
     testImplementation(libs.junit)
     testImplementation(libs.ktor.server.test.host)
 }
+
