@@ -1,0 +1,40 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+    application
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+application {
+    mainClass.set("me.rerere.rikkahub.backend.server.MainKt")
+}
+
+dependencies {
+    implementation(project(":backend-core"))
+    implementation(project(":backend-storage-sqlite"))
+    implementation(project(":backend-migration"))
+
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.core)
+
+    implementation(libs.ktor.server.default.headers)
+    implementation(libs.ktor.server.conditional.headers)
+    implementation(libs.ktor.server.compression)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.auth)
+    implementation(libs.ktor.server.auth.jwt)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.server.status.pages)
+    implementation(libs.ktor.server.sse)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.serialization.kotlinx.json)
+
+    implementation(libs.java.jwt)
+    runtimeOnly(libs.slf4j.simple)
+
+    testImplementation(libs.junit)
+}
