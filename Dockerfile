@@ -19,7 +19,7 @@ COPY backend-migration/ backend-migration/
 COPY backend-server/ backend-server/
 COPY assets/ assets/
 RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
-RUN ./gradlew --settings-file settings.backend.gradle.kts :backend-server:installDist --no-daemon --stacktrace
+RUN ./gradlew :backend-server:installDist --no-daemon --stacktrace
 
 FROM eclipse-temurin:17-jre AS runtime
 WORKDIR /app
@@ -39,3 +39,4 @@ ENV ACCESS_PASSWORD=
 VOLUME ["/data"]
 EXPOSE 8080
 ENTRYPOINT ["/app/backend-server/bin/backend-server"]
+
