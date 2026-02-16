@@ -23,7 +23,7 @@ FILE_003,删除文件,FilesManager.delete,managed_file + disk,/api/files/{id},�
 MIG_001,Android备份导入,WebDavSync/S3Sync backup format,settings+db+upload,/api/migration/import,已实现(导入+报告),已实现,无,P1,导入报告可见并可回滚失败
 MIG_002,备份导出,app/ui/pages/backup,zip exporter,/api/migration/export,已实现(设置页导出),已实现,无,P1,支持导出兼容zip供跨端迁移
 AUTH_001,JWT登录与鉴权,WebApiModule auth-jwt,jwt token,/api/auth/token + Bearer/query,已实现,已实现,无,P1,启用JWT后未登录请求返回401
-EXT_001,Memory管理,app/data/repository/MemoryRepository,db memory table,暂无web API,缺失,已实现(memory_tool + /api/memory),前端缺失,P2,支持查看/新增/删除memory并参与生成
+EXT_001,Memory管理,app/data/repository/MemoryRepository,db memory table,暂无web API,已实现(基础CRUD页),已实现(memory_tool + /api/memory),无,P2,支持查看/新增/删除memory并参与生成
 EXT_002,Prompts页面,app/ui/pages/prompts,settings/injections,暂无web API,缺失,缺失,前端缺失,P2,Web端可管理提示词模板
 EXT_003,Translator业务,app/ui/pages/translator + ChatService.translateMessage,conversation.translation,暂无web API,缺失,缺失,前端缺失,P2,支持消息翻译与流式回写
 EXT_004,Image Generation,app/ui/pages/imggen,gen_media table,暂无web API,缺失,缺失,前端缺失,P2,支持图片生成任务与结果管理
