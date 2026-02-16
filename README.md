@@ -1,4 +1,4 @@
-# RikkaHub WebDist
+﻿# RikkaHub WebDist
 
 [中文文档](README_ZH_CN.md) | English
 
@@ -9,7 +9,8 @@ It is intended for direct fork/build/run on Windows, Linux, and Docker.
 
 - Portable backend modules: `backend-core`, `backend-storage-sqlite`, `backend-migration`, `backend-server`
 - Web frontend: `web-ui` (served by backend static hosting)
-- Docker runtime files: `Dockerfile`, `docker-compose.yml`
+- Release runtime package: `dist/` (prebuilt backend runtime + web static + assets)
+- Docker runtime files: `Dockerfile`, `docker-compose.yml`, and generated `dist/Dockerfile`
 - One-command local scripts: `restart-fullstack.sh`, `restart-fullstack.ps1`
 
 ## Runtime Architecture
@@ -26,7 +27,7 @@ Default data layout:
 
 ## Quick Start
 
-### Option A: Docker (recommended)
+### Option A: Docker from source (recommended)
 
 ```bash
 docker compose up -d --build
@@ -34,26 +35,14 @@ docker compose up -d --build
 
 Open: `http://127.0.0.1:8080/`
 
-Stop:
+### Option B: Docker from release runtime package (`dist/`)
 
 ```bash
-docker compose down
+cd dist
+docker compose up -d --build
 ```
 
-### Option B: Local (Linux/macOS)
-
-Requirements:
-
-- JDK 17+
-- Node.js 20+ (or Bun for web-ui build)
-
-Run:
-
-```bash
-./restart-fullstack.sh
-```
-
-### Option C: Local (Windows PowerShell)
+### Option C: Local (Windows/Linux/macOS)
 
 Requirements:
 
@@ -61,6 +50,12 @@ Requirements:
 - Node.js 20+
 
 Run:
+
+```bash
+./restart-fullstack.sh
+```
+
+Windows PowerShell:
 
 ```powershell
 ./restart-fullstack.ps1
@@ -76,30 +71,19 @@ Run:
 - `JWT_ENABLED` default `false`
 - `ACCESS_PASSWORD` default empty
 
-## Build From Source (manual)
+## CI
 
-```bash
-cd web-ui
-npm install
-npm run build
-cd ..
-./gradlew :backend-server:run
-```
+Push to `webdist` triggers GitHub Actions workflow `.github/workflows/docker-image.yml`.
 
-On Windows:
+Published image tags on GHCR:
 
-```powershell
-cd web-ui
-npm install
-npm run build
-cd ..
-.\gradlew.bat :backend-server:run
-```
+- `ghcr.io/<owner>/<repo>:webdist`
+- `ghcr.io/<owner>/<repo>:<commit_sha>`
 
 ## Notes
 
-- This branch intentionally excludes local AI workflow/process files and personal settings files.
-- `dist/` and local toolchain archives are ignored by Git.
+- `dist/` is tracked in this branch as a release runtime package for direct Docker deployment.
+- `data/`, local toolchains, and personal local files are still ignored.
 
 ## License
 

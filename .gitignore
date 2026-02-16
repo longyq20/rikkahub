@@ -28,7 +28,8 @@ gradle-*-bin.zip
 .tmp-backend/
 
 # Web dist branch local artifacts
-dist/
 .claude/
 
 web/
+push-dist-sftp.ps1
+push-dist-sftp.sh

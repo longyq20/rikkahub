@@ -1,0 +1,20 @@
+services:
+  rikkahub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rikkahub:portable
+    container_name: rikkahub
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATA_DIR: /data
+      WEB_UI_DIR: /app/web-ui
+      ASSETS_DIR: /app/assets
+      JWT_ENABLED: "false"
+      ACCESS_PASSWORD: ""
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

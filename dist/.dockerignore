@@ -1,0 +1,5 @@
+# Runtime data and local overrides
+/data/
+.env
+.env.*
+*.local
