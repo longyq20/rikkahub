@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:1 AS webui-build
+FROM node:20-bookworm-slim AS webui-build
 WORKDIR /app/web-ui
-COPY web-ui/package.json web-ui/bun.lock ./
-RUN bun install --frozen-lockfile
+COPY web-ui/package.json ./
+RUN npm install --no-audit --no-fund
 COPY web-ui/ ./
-RUN bun run build
+RUN npm run build
 
 FROM gradle:8.14.3-jdk17 AS backend-build
 WORKDIR /app
@@ -39,4 +39,3 @@ ENV ACCESS_PASSWORD=
 VOLUME ["/data"]
 EXPOSE 8080
 ENTRYPOINT ["/app/backend-server/bin/backend-server"]
-
