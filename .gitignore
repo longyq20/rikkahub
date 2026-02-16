@@ -26,3 +26,7 @@ gradle-*-bin.zip
 .tmp-backend-run.err.log
 **/.tmp-backend-data*/
 .tmp-backend/
+
+# Web dist branch local artifacts
+dist/
+.claude/

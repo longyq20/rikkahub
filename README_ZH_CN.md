@@ -1,96 +1,105 @@
-<div align="center">
-  <img src="docs/icon.png" alt="App 图标" width="100" />
-  <h1>RikkaHub</h1>
+﻿# RikkaHub WebDist（可移植版）
 
-一个原生Android LLM 聊天客户端，支持切换不同的供应商进行聊天 🤖💬
+中文 | [English](README.md)
 
-[English](README.md) | [繁體中文](README_ZH_TW.md) | 简体中文
+该分支用于发布 RikkaHub 的 **WebUI + Kotlin/Ktor 可移植后端**，目标是让他人 fork 后即可在 Windows/Linux 或 Docker 中直接运行和构建。
 
-点击链接加入群聊 👉 [【RikkaHub】](https://qm.qq.com/q/I8MSU0FkOu)
+## 分支内容
 
-</div>
+- 可移植后端模块：`backend-core`、`backend-storage-sqlite`、`backend-migration`、`backend-server`
+- Web 前端：`web-ui`（由后端统一静态托管）
+- 容器化文件：`Dockerfile`、`docker-compose.yml`
+- 一键本地脚本：`restart-fullstack.sh`、`restart-fullstack.ps1`
 
-<div align="center">
-  <img src="docs/img/chat.png" alt="Chat Interface" width="150" />
-  <img src="docs/img/models.png" alt="Models Picker" width="150" />
-  <img src="docs/img/providers.png" alt="Providers" width="150" />
-  <img src="docs/img/assistants.png" alt="Assistants" width="150" />
-</div>
+## 运行架构
 
-## 🚀 下载
+- 后端：Kotlin + Ktor（`/api` + SSE）
+- 前端：`web-ui` 构建产物
+- 存储：SQLite + 文件目录 `data/`
 
-🔗 [前往官网下载](https://rikka-ai.com/download)
-🔗 [前往 Google Play 下载](https://play.google.com/store/apps/details?id=me.rerere.rikkahub)
+默认数据目录：
 
+- `data/settings.json`
+- `data/rikka_hub.db`
+- `data/upload/`
 
-## 💖 赞助商
+## 快速启动
 
-<div align="center">
-  <img src="app/src/main/assets/icons/aihubmix-color.svg" alt="Aihubmix" width="50" />
-  <p style="font-size: 16px; font-weight: bold;">Aihubmix</p>
-  <p style="font-size: 14px;">感谢 <a href="https://aihubmix.com?aff=pG7r">aihubmix.com</a> 的资金支持。我们推荐使用 aihubmix 作为全球主流模型的一站式服务平台。（OpenAI、Claude、Google Gemini、DeepSeek、Qwen 以及数百种其他模型）。</p>
-</div>
-<div align="center">
-  <img src="app/src/main/assets/icons/siliconflow.svg" alt="SiliconFlow" width="50" />
-  <p style="font-size: 16px; font-weight: bold;">SiliconFlow</p>
-  <p style="font-size: 14px;">感谢 <a href="https://siliconflow.cn/">siliconflow.cn</a> 与我们合作提供免费模型。</p>
-</div>
+### 方式 A：Docker（推荐）
 
-## ✨ 功能特色
+```bash
+docker compose up -d --build
+```
 
-- 🎨 现代化安卓APP设计（Material You / 预测性返回）
-- 🌙 暗色模式
-- 🛠️ MCP 支持
-- 🔄 多种类型的供应商支持，自定义 API / URL / 模型（目前支持 OpenAI、Google、Anthropic）
-- 🖼️ 多模态输入支持
-- 📝 Markdown 渲染（支持代码高亮、数学公式、表格、Mermaid）
-- 🔍 搜索功能（Exa、Tavily、Zhipu、LinkUp、Brave、Perplexity、..）
-- 🧩 Prompt 变量（模型名称、时间等）
-- 🤳 二维码导出和导入提供商
-- 🤖 智能体自定义
-- 🧠 类ChatGPT记忆功能
-- 📝 AI翻译
-- 🌐 自定义HTTP请求头和请求体
+访问：`http://127.0.0.1:8080/`
 
-## ✨ 贡献
+停止：
 
-本项目使用[Android Studio](https://developer.android.com/studio)开发，欢迎提交PR
+```bash
+docker compose down
+```
 
-技术栈文档:
+### 方式 B：本地 Linux/macOS
 
-- [Kotlin](https://kotlinlang.org/) (开发语言)
-- [Koin](https://insert-koin.io/) (依赖注入)
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) (UI 框架)
-- [DataStore](https://developer.android.com/topic/libraries/architecture/datastore?hl=zh-cn#preferences-datastore) (
-  偏好数据存储)
-- [Room](https://developer.android.com/training/data-storage/room) (数据库)
-- [Coil](https://coil-kt.github.io/coil/) (图片加载)
-- [Material You](https://m3.material.io/) (UI 设计)
-- [Navigation Compose](https://developer.android.com/develop/ui/compose/navigation) (导航)
-- [Okhttp](https://square.github.io/okhttp/) (HTTP 客户端)
-- [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) (Json序列化)
-- [compose-icons/lucide](https://composeicons.com/icon-libraries/lucide) (图标库)
+环境要求：
 
-> [!TIP]
-> 你需要在 `app` 文件夹下添加 `google-services.json` 文件才能构建应用。
+- JDK 17+
+- Node.js 20+（或 Bun 用于构建 web-ui）
 
-> [!IMPORTANT]  
-> 以下PR将被拒绝：
-> 1. 添加新语言，因为添加新语言会增加后续本地化的工作量
-> 2. 添加新功能，这个项目是有态度的
-> 3. AI生成的大规模重构和更改
+执行：
 
-## 💰 捐赠
+```bash
+./restart-fullstack.sh
+```
 
-* [Patreon](https://patreon.com/rikkahub)
-* [爱发电](https://afdian.com/a/reovo)
+### 方式 C：本地 Windows PowerShell
 
-## ⭐ Star History
+环境要求：
 
-如果喜欢这个项目，请给个Star ⭐
+- JDK 17+
+- Node.js 20+
 
-[![Star History Chart](https://api.star-history.com/svg?repos=re-ovo/rikkahub&type=Date)](https://star-history.com/#re-ovo/rikkahub&Date)
+执行：
 
-## 📄 许可证
+```powershell
+./restart-fullstack.ps1
+```
 
-[License](LICENSE)
+## 环境变量
+
+- `HOST` 默认 `0.0.0.0`
+- `PORT` 默认 `8080`
+- `DATA_DIR` 默认 `data`
+- `WEB_UI_DIR` 默认 `web-ui/build/client`
+- `ASSETS_DIR` 默认 `app/src/main/assets`
+- `JWT_ENABLED` 默认 `false`
+- `ACCESS_PASSWORD` 默认空
+
+## 手动构建运行
+
+```bash
+cd web-ui
+npm install
+npm run build
+cd ..
+./gradlew :backend-server:run
+```
+
+Windows：
+
+```powershell
+cd web-ui
+npm install
+npm run build
+cd ..
+.\gradlew.bat :backend-server:run
+```
+
+## 说明
+
+- 本分支已剔除本地流程类文件、个人配置文件。
+- `dist/`、本地工具链压缩包等文件默认被 Git 忽略。
+
+## License
+
+见 `LICENSE`。

@@ -1,102 +1,106 @@
-<div align="center">
-  <img src="docs/icon.png" alt="App Icon" width="100" />
-  <h1>RikkaHub</h1>
+﻿# RikkaHub WebDist
 
-  [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/rikkahub/rikkahub)
-  [![Ask DeepWiki](https://img.shields.io/badge/zread.ai-blue?style=flat&logo=readthedocs)](https://zread.ai/rikkahub/rikkahub)
+[中文文档](README_ZH_CN.md) | English
 
-A native Android LLM chat client that supports switching between different providers for
-conversations 🤖💬
+This branch packages the **portable Web UI + Kotlin/Ktor backend** build of RikkaHub.
+It is intended for direct fork/build/run on Windows, Linux, and Docker.
 
-Click to join our Discord server 👉 [【RikkaHub】](https://discord.gg/9weBqxe5c4)
+## What This Branch Contains
 
-[简体中文](README_ZH_CN.md) | [繁體中文](README_ZH_TW.md) | English
-</div>
+- Portable backend modules: `backend-core`, `backend-storage-sqlite`, `backend-migration`, `backend-server`
+- Web frontend: `web-ui` (served by backend static hosting)
+- Docker runtime files: `Dockerfile`, `docker-compose.yml`
+- One-command local scripts: `restart-fullstack.sh`, `restart-fullstack.ps1`
 
-<div align="center">
-  <img src="docs/img/chat.png" alt="Chat Interface" width="150" />
-  <img src="docs/img/models.png" alt="Models Picker" width="150" />
-  <img src="docs/img/providers.png" alt="Providers" width="150" />
-  <img src="docs/img/assistants.png" alt="Assistants" width="150" />
-</div>
+## Runtime Architecture
 
-## 🚀 Download
+- Backend: Kotlin + Ktor (`/api` + SSE)
+- Frontend: `web-ui` static assets
+- Storage: SQLite + file storage under `data/`
 
-🔗 [Download from Website](https://rikka-ai.com/download)
+Default data layout:
 
-🔗 [Download from Google Play](https://play.google.com/store/apps/details?id=me.rerere.rikkahub)
+- `data/settings.json`
+- `data/rikka_hub.db`
+- `data/upload/`
 
-## 💖 Sponsors
+## Quick Start
 
-<div align="center">
-  <img src="app/src/main/assets/icons/aihubmix-color.svg" alt="Aihubmix" width="50" />
-  <p style="font-size: 16px; font-weight: bold;">Aihubmix</p>
-  <p style="font-size: 14px;">Thanks to <a href="https://aihubmix.com?aff=pG7r">aihubmix.com</a> for their financial support. We recommend using aihubmix as a one-stop shop for mainstream models worldwide. (OpenAI, Claude, Google Gemini, DeepSeek, Qwen, and hundreds more).</p>
-</div>
-<div align="center">
-  <img src="app/src/main/assets/icons/siliconflow.svg" alt="SiliconFlow" width="50" />
-  <p style="font-size: 16px; font-weight: bold;">SiliconFlow</p>
-  <p style="font-size: 14px;">Thanks to <a href="https://siliconflow.cn/">siliconflow.cn</a> providing free models in cooperation with us.</p>
-</div>
+### Option A: Docker (recommended)
 
+```bash
+docker compose up -d --build
+```
 
-## ✨ Features
+Open: `http://127.0.0.1:8080/`
 
-- 🎨 Material You Design and 🌙 Dark mode
-- 🔄 Multiple AI Provider Support: custom API / URL / models (all OpenAI, Google, Anthropic compatible api)
-- 🖼️ Multimodal input support (Image, Text Documentation, PDF, Docx)
-- 🛠️ MCP support
-- 📝 Markdown Rendering (with code highlighting, Latex formulas, tables, Mermaid)
-- 🪾 Message Branching
-- 🔍 Search capabilities (Exa, Tavily, Zhipu, LinkUp, Brave, Perplexity, etc.)
-- 🧩 Prompt variables (model name, time, etc.)
-- 🤳 QR code export and import for providers
-- 🤖 Agent customization
-- 🧠 ChatGPT-like memory feature
-- 📝 AI Translation
-- 🌐 Custom HTTP request headers and request bodies
-- 💌 Silly Tavern character card import
+Stop:
 
-## ✨ Contributing
+```bash
+docker compose down
+```
 
-This project is developed using [Android Studio](https://developer.android.com/studio). PRs are
-welcome!
+### Option B: Local (Linux/macOS)
 
-Technology stack documentation:
+Requirements:
 
-- [Kotlin](https://kotlinlang.org/) (Development language)
-- [Koin](https://insert-koin.io/) (Dependency Injection)
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) (UI framework)
-- [DataStore](https://developer.android.com/topic/libraries/architecture/datastore) (Preference data
-  storage)
-- [Room](https://developer.android.com/training/data-storage/room) (Database)
-- [Coil](https://coil-kt.github.io/coil/) (Image loading)
-- [Material You](https://m3.material.io/) (UI design)
-- [Navigation Compose](https://developer.android.com/develop/ui/compose/navigation) (Navigation)
-- [Okhttp](https://square.github.io/okhttp/) (HTTP client)
-- [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) (JSON serialization)
-- [compose-icons/lucide](https://composeicons.com/icon-libraries/lucide) (Icon library)
+- JDK 17+
+- Node.js 20+ (or Bun for web-ui build)
 
-> [!TIP]
-> You need a `google-services.json` file at `app` folder to build the app.
+Run:
 
-> [!IMPORTANT]  
-> The following PRs will be rejected: 
-> 1. Translation related changes, such as adding new languages or updating existing translations
-> 2. Adding new features, this project is opinionated and will not accept pull requests for new features
-> 3. Large-scale refactoring and changes generated by AI
+```bash
+./restart-fullstack.sh
+```
 
-## 💰 Donate
+### Option C: Local (Windows PowerShell)
 
-* [Patreon](https://patreon.com/rikkahub)
-* [爱发电](https://afdian.com/a/reovo)
+Requirements:
 
-## ⭐ Star History
+- JDK 17+
+- Node.js 20+
 
-If you like this project, please give it a star ⭐
+Run:
 
-[![Star History Chart](https://api.star-history.com/svg?repos=re-ovo/rikkahub&type=Date)](https://star-history.com/#re-ovo/rikkahub&Date)
+```powershell
+./restart-fullstack.ps1
+```
 
-## 📄 License
+## Environment Variables
 
-[License](LICENSE)
+- `HOST` default `0.0.0.0`
+- `PORT` default `8080`
+- `DATA_DIR` default `data`
+- `WEB_UI_DIR` default `web-ui/build/client`
+- `ASSETS_DIR` default `app/src/main/assets`
+- `JWT_ENABLED` default `false`
+- `ACCESS_PASSWORD` default empty
+
+## Build From Source (manual)
+
+```bash
+cd web-ui
+npm install
+npm run build
+cd ..
+./gradlew :backend-server:run
+```
+
+On Windows:
+
+```powershell
+cd web-ui
+npm install
+npm run build
+cd ..
+.\gradlew.bat :backend-server:run
+```
+
+## Notes
+
+- This branch intentionally excludes local AI workflow/process files and personal settings files.
+- `dist/` and local toolchain archives are ignored by Git.
+
+## License
+
+See `LICENSE`.
