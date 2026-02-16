@@ -23,7 +23,7 @@
 - 聊天主链路：已从占位推进到真实模型生成，SSE 主事件契约已自动化验证。
 - 设置主链路：WebUI 与 Backend 已对齐，具备流式同步。
 - 文件与迁移：基础 API 已具备，边界测试与前端入口仍需补齐。
-- 扩展能力：memory/prompts/translator/imggen/log/debug/TTS/share 仍主要缺失。
+- 扩展能力：memory 后端 API 已实现（WebUI 入口待补）；prompts/translator/imggen/log/debug/TTS/share 仍缺失。
 
 ## 分阶段实施建议
 

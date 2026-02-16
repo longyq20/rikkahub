@@ -1,4 +1,4 @@
-﻿# 03 API Compatibility Matrix
+# 03 API Compatibility Matrix
 
 ## 说明
 - 基线来源：Android `app/.../web/routes/*` 与新后端 `backend-server/*Routes.kt`。
@@ -44,11 +44,16 @@
 | `GET /api/assets/{path...}` | 支持 | 支持 | 兼容 | 静态资产。 |
 | `POST /api/migration/import` | 支持（Android备份通道） | 支持 | 兼容 | zip 导入 + 回滚。 |
 | `GET /api/migration/export` | Android App 页面能力 | 支持（新增） | 增量扩展 | 导出兼容 zip（后端已提供）。 |
+| `GET /api/memory` | Android 仅 App 内 memory 管理 | 支持（新增） | 增量扩展 | assistant 作用域 memory 列表。 |
+| `POST /api/memory` | Android 仅 App 内 memory 管理 | 支持（新增） | 增量扩展 | 新增 memory 记录。 |
+| `PUT /api/memory/{id}` | Android 仅 App 内 memory 管理 | 支持（新增） | 增量扩展 | 更新 memory 内容。 |
+| `DELETE /api/memory/{id}` | Android 仅 App 内 memory 管理 | 支持（新增） | 增量扩展 | 删除 memory 记录。 |
 
 ## 增量接口（Android Web API 原无）
 - `GET /api/system/health`
 - `GET /api/system/info`
 - `GET /api/migration/export`
+- `GET /api/memory` / `POST /api/memory` / `PUT /api/memory/{id}` / `DELETE /api/memory/{id}`
 
 ## SSE 事件兼容性
 - 列表流：`invalidate`

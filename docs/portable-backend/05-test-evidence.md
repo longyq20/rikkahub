@@ -14,7 +14,7 @@
   - `OpenAiToolCallFlowTest`（OpenAI `tool_calls -> tool part` 映射；已执行 tool 以 `role=tool` 回填到下一轮请求；MCP `mcp__*` 工具广告）
   - `MemorySqliteRepositoryTest`（memory 存储增删改查）
   - `ApiContractIntegrationTest`（`/api/conversations`、`/api/settings`、SSE 事件契约；新增 `search/service` 越界校验与 `assistant/mcp|injections` 引用校验）
-  - `ApiParityIntegrationTest`（`/api/files`、`/api/auth`、`/api/migration/export|import`）
+  - `ApiParityIntegrationTest`（`/api/files`、`/api/auth`、`/api/migration/export|import`、`/api/memory` CRUD）
 
 ## 运行验证
 
