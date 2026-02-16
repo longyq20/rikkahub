@@ -3,6 +3,7 @@ WORKDIR /app
 COPY backend-server/ /app/backend-server/
 COPY web-ui-static/ /app/web-ui/
 COPY assets/ /app/assets/
+RUN sed -i 's/\r$//' /app/backend-server/bin/backend-server && chmod +x /app/backend-server/bin/backend-server
 
 ENV HOST=0.0.0.0
 ENV PORT=8080

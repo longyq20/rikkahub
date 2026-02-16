@@ -2,11 +2,13 @@ package me.rerere.rikkahub.backend.server
 
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.path
 import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
+import io.ktor.server.routing.head
 import me.rerere.rikkahub.backend.core.api.NotFoundException
 import java.nio.file.Files
 
@@ -24,6 +26,22 @@ fun Routing.registerStaticWeb(config: ServerConfig) {
 
     val webRoot = config.webUiDir.toAbsolutePath().normalize()
     val assetRoot = webRoot.resolve("assets").normalize()
+
+    suspend fun ApplicationCall.respondIndex() {
+        val index = webRoot.resolve("index.html")
+        if (!Files.exists(index) || Files.isRegularFile(index).not()) {
+            throw NotFoundException("index.html not found")
+        }
+        respondFile(index.toFile())
+    }
+
+    fun shouldServeIndex(requestPath: String): Boolean {
+        if (requestPath.startsWith("/api/")) {
+            return false
+        }
+        val lastSegment = requestPath.substringAfterLast('/')
+        return !lastSegment.contains('.')
+    }
 
     get("/assets/{assetPath...}") {
         val rawParts = call.parameters.getAll("assetPath") ?: throw NotFoundException("Asset not found")
@@ -45,30 +63,43 @@ fun Routing.registerStaticWeb(config: ServerConfig) {
         call.respondFile(favicon.toFile())
     }
 
-    get("/") {
-        val index = webRoot.resolve("index.html")
-        if (!Files.exists(index) || Files.isRegularFile(index).not()) {
-            throw NotFoundException("index.html not found")
+    get("/favicon.ico") {
+        val ico = webRoot.resolve("favicon.ico")
+        if (Files.exists(ico) && Files.isRegularFile(ico)) {
+            call.respondFile(ico.toFile())
+            return@get
         }
-        call.respondFile(index.toFile())
+
+        val svg = webRoot.resolve("favicon.svg")
+        if (Files.exists(svg) && Files.isRegularFile(svg)) {
+            call.respondFile(svg.toFile())
+            return@get
+        }
+
+        throw NotFoundException("favicon icon not found")
+    }
+
+    get("/") {
+        call.respondIndex()
+    }
+
+    head("/") {
+        call.respondIndex()
     }
 
     get("/{...}") {
         val requestPath = call.request.path()
-        if (requestPath.startsWith("/api/")) {
+        if (!shouldServeIndex(requestPath)) {
             throw NotFoundException("Not found")
         }
+        call.respondIndex()
+    }
 
-        // Only SPA routes (without file extension) fallback to index.html.
-        val lastSegment = requestPath.substringAfterLast('/')
-        if (lastSegment.contains('.')) {
+    head("/{...}") {
+        val requestPath = call.request.path()
+        if (!shouldServeIndex(requestPath)) {
             throw NotFoundException("Not found")
         }
-
-        val index = webRoot.resolve("index.html")
-        if (!Files.exists(index) || Files.isRegularFile(index).not()) {
-            throw NotFoundException("index.html not found")
-        }
-        call.respondFile(index.toFile())
+        call.respondIndex()
     }
 }
