@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { Link } from "react-router";
-import { Brain, Database, Globe, Home, Puzzle, Sliders, Wrench } from "lucide-react";
+import { Brain, Database, FileText, Globe, Home, Puzzle, Sliders, Wrench } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { ScrollArea } from "~/components/ui/scroll-area";
@@ -33,6 +33,12 @@ const SECTIONS: Array<{
     title: "MCP",
     description: "Manage MCP servers and tool enable/approval settings.",
     icon: Puzzle,
+  },
+  {
+    to: "/settings/prompts",
+    title: "Prompts",
+    description: "Manage mode injections and lorebooks templates.",
+    icon: FileText,
   },
   {
     to: "/settings/memory",
