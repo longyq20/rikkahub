@@ -1,10 +1,11 @@
 import * as React from "react";
 
 import { Link } from "react-router";
-import { Download, Home, Upload } from "lucide-react";
+import { ChevronLeft, Download, Home, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
+import { useConfirm } from "~/components/confirm-dialog-provider";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/utils";
@@ -32,6 +33,7 @@ export default function SettingsBackupPage() {
   const [importBusy, setImportBusy] = React.useState(false);
   const [importFile, setImportFile] = React.useState<File | null>(null);
   const [report, setReport] = React.useState<MigrationImportReportDto | null>(null);
+  const confirm = useConfirm();
 
   const handleImport = React.useCallback(async () => {
     if (!importFile) {
@@ -61,8 +63,13 @@ export default function SettingsBackupPage() {
   return (
     <div className="flex h-svh flex-col bg-background">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <Button asChild variant="outline" size="icon-sm" title="Back" aria-label="Back">
+        <Button asChild variant="outline" size="icon-sm" title="Back to settings" aria-label="Back to settings">
           <Link to="/settings">
+            <ChevronLeft className="size-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="icon-sm" title="Back to chats" aria-label="Back to chats">
+          <Link to="/">
             <Home className="size-4" />
           </Link>
         </Button>
@@ -110,10 +117,17 @@ export default function SettingsBackupPage() {
                     size="sm"
                     disabled={importBusy || !importFile}
                     onClick={() => {
-                      if (!window.confirm("Import will overwrite current data. Continue?")) {
-                        return;
-                      }
-                      void handleImport();
+                      void (async () => {
+                        const confirmed = await confirm({
+                          title: "Import backup?",
+                          description: "Import will overwrite current data. Continue?",
+                          confirmText: "Import",
+                          cancelText: "Cancel",
+                          destructive: true,
+                        });
+                        if (!confirmed) return;
+                        void handleImport();
+                      })();
                     }}
                   >
                     <Upload className={cn("size-4", importBusy && "opacity-60")} />

@@ -1,11 +1,12 @@
 import * as React from "react";
 
 import { Link, useSearchParams } from "react-router";
-import { BookOpen, Brain, Copy, Home, Plus, Save, Terminal, Trash2, UserCog, Wrench } from "lucide-react";
+import { BookOpen, Brain, ChevronLeft, Copy, Home, Plus, Save, Terminal, Trash2, UserCog, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
 import { Button } from "~/components/ui/button";
+import { useConfirm } from "~/components/confirm-dialog-provider";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
@@ -102,6 +103,7 @@ export default function SettingsAssistantsPage() {
   const [customBodiesText, setCustomBodiesText] = React.useState("[]");
   const [customHeadersError, setCustomHeadersError] = React.useState<string | null>(null);
   const [customBodiesError, setCustomBodiesError] = React.useState<string | null>(null);
+  const confirm = useConfirm();
 
   React.useEffect(() => {
     if (!settings || dirty) return;
@@ -228,13 +230,22 @@ export default function SettingsAssistantsPage() {
     });
   }, [selectedAssistant, updateDraft]);
 
-  const deleteAssistant = React.useCallback(() => {
+  const deleteAssistant = React.useCallback(async () => {
     if (!selectedAssistant) return;
     if (assistants.length <= 1) {
       toast.error("At least one assistant is required");
       return;
     }
-    if (!window.confirm(`Delete assistant "${getString(selectedAssistant.name) || "Assistant"}"?`)) return;
+
+    const confirmed = await confirm({
+      title: "Delete assistant?",
+      description: `Delete assistant "${getString(selectedAssistant.name) || "Assistant"}"?`,
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
     updateDraft((next) => {
       const list = ensureArray<AnyRecord>(next.assistants).filter(
         (assistant) => getString(assistant.id) !== getString(selectedAssistant.id),
@@ -244,7 +255,7 @@ export default function SettingsAssistantsPage() {
       next.assistantId = fallbackId;
       setSelectedAssistantId(fallbackId);
     });
-  }, [assistants.length, selectedAssistant, updateDraft]);
+  }, [assistants.length, confirm, selectedAssistant, updateDraft]);
 
   const save = React.useCallback(async () => {
     if (!draft) return;
@@ -371,8 +382,13 @@ export default function SettingsAssistantsPage() {
   return (
     <div className="flex h-svh flex-col bg-background">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <Button asChild variant="outline" size="icon-sm">
+        <Button asChild variant="outline" size="icon-sm" title="Back to settings" aria-label="Back to settings">
           <Link to="/settings">
+            <ChevronLeft className="size-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="icon-sm" title="Back to chats" aria-label="Back to chats">
+          <Link to="/">
             <Home className="size-4" />
           </Link>
         </Button>

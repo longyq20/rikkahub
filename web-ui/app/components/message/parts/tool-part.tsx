@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import Markdown from "~/components/markdown/markdown";
+import { usePrompt } from "~/components/confirm-dialog-provider";
 import { Button } from "~/components/ui/button";
 import {
   Drawer,
@@ -231,6 +232,7 @@ export function ToolPart({
   isLast,
 }: ToolPartProps) {
   const { t } = useTranslation("message");
+  const prompt = usePrompt();
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = React.useState(true);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -278,7 +280,14 @@ export function ToolPart({
   const handleDeny = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (!onToolApproval) return;
-    const reason = window.prompt(t("tool_part.deny_reason_prompt"), "");
+    const reason = await prompt({
+      title: t("tool_part.denied"),
+      description: t("tool_part.deny_reason_prompt"),
+      defaultValue: "",
+      confirmText: "Deny",
+      cancelText: "Cancel",
+      destructive: true,
+    });
     if (reason === null) return;
     await onToolApproval(tool.toolCallId, false, reason);
   };

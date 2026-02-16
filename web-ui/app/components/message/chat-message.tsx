@@ -38,6 +38,7 @@ import {
 import { ChatMessageAnnotationsRow } from "./chat-message-annotations";
 import { ChatMessageAvatarRow } from "./chat-message-avatar-row";
 import { MessageParts } from "./message-part";
+import { useConfirm } from "~/components/confirm-dialog-provider";
 
 interface ChatMessageProps {
   node: MessageNodeDto;
@@ -201,6 +202,7 @@ const ChatMessageActionsRow = React.memo(({
   onFork?: (messageId: string) => void | Promise<void>;
 }) => {
   const { t } = useTranslation("message");
+  const confirm = useConfirm();
   const [regenerating, setRegenerating] = React.useState(false);
   const [switchingBranch, setSwitchingBranch] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
@@ -216,7 +218,12 @@ const ChatMessageActionsRow = React.memo(({
     if (!onRegenerate) return;
 
     if (message.role === "USER") {
-      const confirmed = window.confirm(t("chat_message.regenerate_from_user_confirm"));
+      const confirmed = await confirm({
+        title: t("chat_message.regenerate"),
+        description: t("chat_message.regenerate_from_user_confirm"),
+        confirmText: t("chat_message.regenerate"),
+        cancelText: "Cancel",
+      });
       if (!confirmed) return;
     }
 
@@ -226,7 +233,7 @@ const ChatMessageActionsRow = React.memo(({
     } finally {
       setRegenerating(false);
     }
-  }, [message.id, message.role, onRegenerate, t]);
+  }, [confirm, message.id, message.role, onRegenerate, t]);
 
   const handleSwitchBranch = React.useCallback(
     async (selectIndex: number) => {
@@ -247,7 +254,13 @@ const ChatMessageActionsRow = React.memo(({
   const handleDelete = React.useCallback(async () => {
     if (!onDelete) return;
 
-    const confirmed = window.confirm(t("chat_message.delete_confirm"));
+    const confirmed = await confirm({
+      title: t("chat_message.delete"),
+      description: t("chat_message.delete_confirm"),
+      confirmText: t("chat_message.delete"),
+      cancelText: "Cancel",
+      destructive: true,
+    });
     if (!confirmed) return;
 
     setDeleting(true);
@@ -256,7 +269,7 @@ const ChatMessageActionsRow = React.memo(({
     } finally {
       setDeleting(false);
     }
-  }, [message.id, onDelete, t]);
+  }, [confirm, message.id, onDelete, t]);
 
   const handleFork = React.useCallback(async () => {
     if (!onFork) return;

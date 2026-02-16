@@ -8,11 +8,12 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { ConfirmDialogProvider } from "~/components/confirm-dialog-provider";
 import { useSettingsSubscription } from "~/stores";
 import "./app.css";
 import "./i18n";
-import { Toaster } from "./components/ui/sonner";
 import { ThemeProvider } from "./components/theme-provider";
+import { Toaster } from "./components/ui/sonner";
 import { WebAuthGate } from "./components/web-auth-gate";
 
 export const links: Route.LinksFunction = () => [
@@ -51,9 +52,11 @@ function AppContent() {
   useSettingsSubscription();
   return (
     <ThemeProvider defaultTheme="system">
-      <Outlet />
-      <WebAuthGate />
-      <Toaster position="top-center"/>
+      <ConfirmDialogProvider>
+        <Outlet />
+        <WebAuthGate />
+        <Toaster position="top-center" />
+      </ConfirmDialogProvider>
     </ThemeProvider>
   );
 }

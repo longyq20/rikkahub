@@ -1,4 +1,4 @@
-﻿package me.rerere.rikkahub.backend.server.service
+package me.rerere.rikkahub.backend.server.service
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -248,6 +248,137 @@ class ConversationEngineTest {
         val latest = updated.messageNodes.last().messages.first()
         assertEquals("ASSISTANT", latest.role)
         assertEquals("regen reply", latest.parts.first().stringValue("text"))
+    }
+
+    @Test
+    fun sendMessage_generatesConversationTitleWhenBlank() = runBlocking {
+        val context = createContext()
+        val generator = FakeGenerator(reply = "generated reply")
+        val engine = ConversationEngine(context.conversationRepo, context.settingsRepo, generator)
+
+        engine.sendMessage("conv-title-auto", listOf(textPart("hello")), answer = true)
+        waitUntilDone(engine, "conv-title-auto")
+
+        val conversation = engine.getConversation("conv-title-auto") ?: error("conversation missing")
+        assertEquals("Generated title", conversation.title)
+    }
+
+    @Test
+    fun sendMessage_keepsExistingConversationTitle() = runBlocking {
+        val context = createContext()
+        val generator = FakeGenerator(reply = "generated reply")
+        val engine = ConversationEngine(context.conversationRepo, context.settingsRepo, generator)
+
+        val now = Instant.now().toEpochMilli()
+        context.conversationRepo.upsertConversation(
+            ConversationRecord(
+                id = "conv-title-existing",
+                assistantId = context.settingsRepo.currentAssistantId(),
+                title = "Keep this title",
+                messageNodes = emptyList(),
+                createAt = now,
+                updateAt = now,
+            )
+        )
+
+        engine.sendMessage("conv-title-existing", listOf(textPart("hello again")), answer = true)
+        waitUntilDone(engine, "conv-title-existing")
+
+        val conversation = engine.getConversation("conv-title-existing") ?: error("conversation missing")
+        assertEquals("Keep this title", conversation.title)
+    }
+
+    @Test
+    fun regenerateConversationTitle_usesGeneratorResult() = runBlocking {
+        val context = createContext()
+        val generator = FakeGenerator(reply = "generated reply")
+        val engine = ConversationEngine(context.conversationRepo, context.settingsRepo, generator)
+
+        val now = Instant.now().toEpochMilli()
+        context.conversationRepo.upsertConversation(
+            ConversationRecord(
+                id = "conv-title-regen",
+                assistantId = context.settingsRepo.currentAssistantId(),
+                title = "",
+                messageNodes = listOf(
+                    MessageNodeRecord(
+                        id = "node-1",
+                        messages = listOf(
+                            MessageRecord(
+                                id = "msg-1",
+                                role = "USER",
+                                parts = listOf(textPart("hello")),
+                                createdAt = Instant.now().toString(),
+                            )
+                        ),
+                        selectIndex = 0,
+                    )
+                ),
+                createAt = now,
+                updateAt = now,
+            )
+        )
+
+        val before = context.conversationRepo.getConversationById("conv-title-regen") ?: error("conversation missing before")
+
+        engine.regenerateConversationTitle("conv-title-regen")
+
+        val conversation = engine.getConversation("conv-title-regen") ?: error("conversation missing")
+        assertEquals("Generated title", conversation.title)
+        assertEquals(before.updateAt, conversation.updateAt)
+    }
+
+    @Test
+    fun forkConversationAtMessage_clonesMessageNodeIds() = runBlocking {
+        val context = createContext()
+        val generator = FakeGenerator(reply = "generated reply")
+        val engine = ConversationEngine(context.conversationRepo, context.settingsRepo, generator)
+
+        val now = Instant.now().toEpochMilli()
+        context.conversationRepo.upsertConversation(
+            ConversationRecord(
+                id = "conv-fork",
+                assistantId = context.settingsRepo.currentAssistantId(),
+                title = "Fork Source",
+                messageNodes = listOf(
+                    MessageNodeRecord(
+                        id = "node-1",
+                        messages = listOf(
+                            MessageRecord(
+                                id = "msg-1",
+                                role = "USER",
+                                parts = listOf(textPart("hello")),
+                                createdAt = Instant.now().toString(),
+                            )
+                        ),
+                        selectIndex = 0,
+                    ),
+                    MessageNodeRecord(
+                        id = "node-2",
+                        messages = listOf(
+                            MessageRecord(
+                                id = "msg-2",
+                                role = "ASSISTANT",
+                                parts = listOf(textPart("world")),
+                                createdAt = Instant.now().toString(),
+                            )
+                        ),
+                        selectIndex = 0,
+                    ),
+                ),
+                createAt = now,
+                updateAt = now,
+            )
+        )
+
+        val fork = engine.forkConversationAtMessage("conv-fork", "msg-2")
+
+        assertEquals(2, fork.messageNodes.size)
+        assertFalse(fork.messageNodes.any { it.id == "node-1" || it.id == "node-2" })
+        assertEquals(fork.messageNodes.size, fork.messageNodes.map { it.id }.toSet().size)
+
+        val storedFork = context.conversationRepo.getConversationById(fork.id) ?: error("fork conversation missing")
+        assertEquals(fork.messageNodes.map { it.id }, storedFork.messageNodes.map { it.id })
     }
 
     private suspend fun waitUntilDone(engine: ConversationEngine, conversationId: String) {

@@ -1,4 +1,4 @@
-﻿package me.rerere.rikkahub.backend.server.service
+package me.rerere.rikkahub.backend.server.service
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -147,15 +147,30 @@ class PortableLlmGenerator(
     }
 
     override suspend fun generateTitle(settings: JsonObject, conversation: ConversationRecord): String? {
-        val selection = selectModel(settings = settings, assistantId = conversation.assistantId)
+        val preferredTitleModelRef = settings.stringValue("titleModelId")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        val selection = selectModel(
+            settings = settings,
+            assistantId = conversation.assistantId,
+            modelRefOverride = preferredTitleModelRef,
+        )
+
         val summaryInput = buildTitleInput(conversation)
         if (summaryInput.isBlank()) return null
 
-        val prompt = "Generate a concise conversation title (max 12 words). Reply with title only."
-        val messages = listOf(
-            ChatMessage(role = "system", content = prompt),
-            ChatMessage(role = "user", content = summaryInput),
+        val promptTemplate = settings.stringValue("titlePrompt")
+            ?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_TITLE_PROMPT
+        val prompt = applyNamedPlaceholders(
+            template = promptTemplate,
+            values = mapOf(
+                "locale" to Locale.getDefault().displayName,
+                "content" to summaryInput,
+            ),
         )
+
+        val messages = listOf(ChatMessage(role = "user", content = prompt))
 
         val result = when (selection.providerType) {
             "openai" -> generateViaOpenAi(
@@ -179,10 +194,10 @@ class PortableLlmGenerator(
         val raw = result.parts.firstOrNull { it.stringValue("type") == "text" }?.stringValue("text")?.trim().orEmpty()
         if (raw.isBlank()) return null
         return raw
-            .replace(Regex("[\\r\\n]+"), " ")
+            .replace(Regex("[\r\n]+"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
-            .trim('"', '\'', '`')
+            .trim('"', '\'')
             .take(96)
     }
 
@@ -1509,6 +1524,17 @@ class PortableLlmGenerator(
         return this.replace(mustache, escaped).replace(legacy, escaped)
     }
 
+    
+    private fun applyNamedPlaceholders(template: String, values: Map<String, String>): String {
+        var result = template
+        values.forEach { (key, value) ->
+            val escaped = Regex.escapeReplacement(value)
+            val token = Regex("\\{\\s*" + Regex.escape(key) + "\\s*\\}", RegexOption.IGNORE_CASE)
+            result = result.replace(token, escaped)
+        }
+        return result
+    }
+
     private fun imagePart(url: String): JsonObject = JsonObject(
         mapOf(
             "type" to JsonPrimitive("image"),
@@ -1559,12 +1585,14 @@ class PortableLlmGenerator(
         )
     }
 
-    private fun selectModel(settings: JsonObject, assistantId: String): Selection {
+    private fun selectModel(settings: JsonObject, assistantId: String, modelRefOverride: String? = null): Selection {
         val assistants = settings.arrayValue("assistants")?.mapNotNull { it as? JsonObject } ?: emptyList()
         val assistant = assistants.firstOrNull { it.stringValue("id") == assistantId } ?: JsonObject(emptyMap())
 
-        val modelRef = assistant.stringValue("chatModelId")
+        val modelRef = modelRefOverride
             ?.takeIf { it.isNotBlank() }
+            ?: assistant.stringValue("chatModelId")
+                ?.takeIf { it.isNotBlank() }
             ?: settings.stringValue("chatModelId")
             ?: "auto"
 
@@ -1660,6 +1688,20 @@ class PortableLlmGenerator(
 private const val DEFAULT_INLINE_IMAGE_MAX_BYTES = 8L * 1024L * 1024L
 private val MARKDOWN_IMAGE_REGEX = Regex("!\\[[^\\]]*\\]\\(([^)]+)\\)")
 private val INLINE_DATA_IMAGE_REGEX = Regex("data:image/[A-Za-z0-9.+-]+;base64,[A-Za-z0-9+/=\\s]+")
+
+private val DEFAULT_TITLE_PROMPT = """
+    I will give you some dialogue content in the <content> block.
+    You need to summarize the conversation between user and assistant into a short title.
+    1. The title language should be consistent with the user's primary language
+    2. Do not use punctuation or other special symbols
+    3. Reply directly with the title
+    4. Summarize using {locale} language
+    5. The title should not exceed 10 characters
+
+    <content>
+    {content}
+    </content>
+""".trimIndent()
 
 private fun defaultDataDir(): Path {
     val fromEnv = System.getenv("DATA_DIR")?.trim().orEmpty()

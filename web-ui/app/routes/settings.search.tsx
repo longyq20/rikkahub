@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 
 import { Link } from "react-router";
-import { ArrowDown, ArrowUp, Home, Plus, Save, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, Home, Plus, Save, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
@@ -303,8 +303,13 @@ export default function SettingsSearchPage() {
   return (
     <div className="flex h-svh flex-col bg-background">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <Button asChild variant="outline" size="icon-sm" title="Back" aria-label="Back">
+        <Button asChild variant="outline" size="icon-sm" title="Back to settings" aria-label="Back to settings">
           <Link to="/settings">
+            <ChevronLeft className="size-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="icon-sm" title="Back to chats" aria-label="Back to chats">
+          <Link to="/">
             <Home className="size-4" />
           </Link>
         </Button>

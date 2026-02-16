@@ -135,6 +135,8 @@ export interface Settings {
   enableWebSearch: boolean;
   favoriteModels: string[];
   chatModelId: string;
+  titleModelId?: string;
+  titlePrompt?: string;
   assistantId: string;
   providers: ProviderProfile[];
   assistants: AssistantProfile[];

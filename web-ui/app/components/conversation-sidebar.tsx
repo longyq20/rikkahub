@@ -69,6 +69,7 @@ import {
 } from "~/components/theme-provider";
 import { ConversationSearchButton } from "~/components/conversation-search-button";
 import { CustomThemeDialog } from "~/components/custom-theme-dialog";
+import { useConfirm, usePrompt } from "~/components/confirm-dialog-provider";
 import { getAssistantDisplayName } from "~/lib/display";
 import { clearWebAuthToken } from "~/services/api";
 import type { AssistantAvatar, AssistantProfile, AssistantTag, ConversationListDto } from "~/types";
@@ -231,6 +232,8 @@ const ConversationListRow = React.memo(({
   onDelete,
 }: ConversationListRowProps) => {
   const { t } = useTranslation();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [pendingAction, setPendingAction] = React.useState<string | null>(null);
 
@@ -369,29 +372,37 @@ const ConversationListRow = React.memo(({
                   disabled={pendingAction !== null}
                   onSelect={(event) => {
                     event.preventDefault();
-                    const nextTitle = window
-                      .prompt(t("conversation_sidebar.edit_title_prompt"), conversation.title)
-                      ?.trim();
-                    if (nextTitle == null) {
-                      return;
-                    }
-                    if (nextTitle.length === 0) {
-                      toast.error(t("conversation_sidebar.title_empty"));
-                      return;
-                    }
-                    if (nextTitle === conversation.title) {
-                      return;
-                    }
-                    void runAction(
-                      "update-title",
-                      async () => {
-                        await onUpdateTitle(conversation.id, nextTitle);
-                      },
-                      {
-                        success: t("conversation_sidebar.title_updated"),
-                        error: t("conversation_sidebar.title_update_failed"),
-                      },
-                    );
+                    void (async () => {
+                      const nextTitle = (
+                        await prompt({
+                          title: t("conversation_sidebar.edit_title"),
+                          description: t("conversation_sidebar.edit_title_prompt"),
+                          defaultValue: conversation.title,
+                          confirmText: "OK",
+                          cancelText: "Cancel",
+                        })
+                      )?.trim();
+                      if (nextTitle == null) {
+                        return;
+                      }
+                      if (nextTitle.length === 0) {
+                        toast.error(t("conversation_sidebar.title_empty"));
+                        return;
+                      }
+                      if (nextTitle === conversation.title) {
+                        return;
+                      }
+                      await runAction(
+                        "update-title",
+                        async () => {
+                          await onUpdateTitle(conversation.id, nextTitle);
+                        },
+                        {
+                          success: t("conversation_sidebar.title_updated"),
+                          error: t("conversation_sidebar.title_update_failed"),
+                        },
+                      );
+                    })();
                   }}
                 >
                   <Pencil className="size-4" />
@@ -449,19 +460,28 @@ const ConversationListRow = React.memo(({
                     disabled={pendingAction !== null}
                     onSelect={(event) => {
                       event.preventDefault();
-                      if (!window.confirm(t("conversation_sidebar.delete_confirm"))) {
-                        return;
-                      }
-                      void runAction(
-                        "delete",
-                        async () => {
-                          await onDelete(conversation.id);
-                        },
-                        {
-                          success: t("conversation_sidebar.delete_success"),
-                          error: t("conversation_sidebar.delete_failed"),
-                        },
-                      );
+                      void (async () => {
+                        const confirmed = await confirm({
+                          title: t("conversation_sidebar.delete_conversation"),
+                          description: t("conversation_sidebar.delete_confirm"),
+                          confirmText: t("conversation_sidebar.delete_conversation"),
+                          cancelText: "Cancel",
+                          destructive: true,
+                        });
+                        if (!confirmed) {
+                          return;
+                        }
+                        await runAction(
+                          "delete",
+                          async () => {
+                            await onDelete(conversation.id);
+                          },
+                          {
+                            success: t("conversation_sidebar.delete_success"),
+                            error: t("conversation_sidebar.delete_failed"),
+                          },
+                        );
+                      })();
                     }}
                   >
                     <Trash2 className="size-4" />

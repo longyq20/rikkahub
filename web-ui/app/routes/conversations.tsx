@@ -7,6 +7,7 @@ import {
   getConversationMessageAnchorId,
 } from "~/components/conversation-quick-jump";
 import { ConversationSidebar } from "~/components/conversation-sidebar";
+import { useConfirm } from "~/components/confirm-dialog-provider";
 import {
   Conversation,
   ConversationContent,
@@ -721,6 +722,7 @@ export default function ConversationsPage() {
 
 function ConversationsPageInner() {
   const { t } = useTranslation("page");
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const { id: routeId } = useParams();
   const isHomeRoute = !routeId;
@@ -873,9 +875,13 @@ function ConversationsPageInner() {
       }
 
       const targetName = getAssistantDisplayName(targetAssistant.name);
-      const confirmed = window.confirm(
-        `Delete assistant "${targetName}" and all related conversations? This action cannot be undone.`,
-      );
+      const confirmed = await confirm({
+        title: "Delete assistant?",
+        description: `Delete assistant "${targetName}" and all related conversations? This action cannot be undone.`,
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        destructive: true,
+      });
       if (!confirmed) {
         return;
       }

@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { Link } from "react-router";
-import { ChevronRight, Download, Eye, EyeOff, Home, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Eye, EyeOff, Home, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
@@ -11,6 +11,8 @@ import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Switch } from "~/components/ui/switch";
+import { Textarea } from "~/components/ui/textarea";
+import { useConfirm } from "~/components/confirm-dialog-provider";
 import api from "~/services/api";
 import type { FetchProviderModelsRequestDto, FetchProviderModelsResponseDto, ProviderModelFetchDto } from "~/types/dto";
 import { useSettingsStore } from "~/stores";
@@ -58,6 +60,20 @@ const PROXY_TYPES: Array<{ value: ProxyType; label: string }> = [
   { value: "http", label: "HTTP" },
   { value: "socks5", label: "SOCKS5" },
 ];
+
+const DEFAULT_TITLE_PROMPT = [
+  "I will give you some dialogue content in the <content> block.",
+  "You need to summarize the conversation between user and assistant into a short title.",
+  "1. The title language should be consistent with the user's primary language",
+  "2. Do not use punctuation or other special symbols",
+  "3. Reply directly with the title",
+  "4. Summarize using {locale} language",
+  "5. The title should not exceed 10 characters",
+  "",
+  "<content>",
+  "{content}",
+  "</content>",
+].join("\n");
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -238,6 +254,9 @@ export default function SettingsProvidersPage() {
   const [addProviderType, setAddProviderType] = React.useState<ProviderType>("openai");
   const [fetchStates, setFetchStates] = React.useState<Record<string, ProviderFetchState>>({});
   const [collapsedProviders, setCollapsedProviders] = React.useState<Record<string, boolean>>({});
+  const [defaultModelsCollapsed, setDefaultModelsCollapsed] = React.useState(false);
+  const [titleSummaryCollapsed, setTitleSummaryCollapsed] = React.useState(false);
+  const confirm = useConfirm();
 
   React.useEffect(() => {
     if (!settings || dirty) return;
@@ -245,6 +264,46 @@ export default function SettingsProvidersPage() {
   }, [settings, dirty]);
 
   const providers = ensureArray<AnyRecord>(draft?.providers);
+  const titleModelOptions = React.useMemo(() => {
+    const options: Array<{ id: string; label: string }> = [];
+    const seen = new Set<string>();
+
+    providers.forEach((provider, providerIndex) => {
+      const providerName = getString(provider.name, "Provider " + String(providerIndex + 1));
+      const models = ensureArray<AnyRecord>(provider.models);
+
+      models.forEach((model) => {
+        if (normalizeModelType(model.type) !== "CHAT") return;
+        const id = getString(model.id).trim();
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+
+        const displayName = getString(model.displayName, id).trim() || id;
+        const modelId = getString(model.modelId).trim();
+        const suffix = modelId ? " (" + providerName + " / " + modelId + ")" : " (" + providerName + ")";
+        options.push({ id, label: displayName + suffix });
+      });
+    });
+
+    if (!seen.has("auto")) {
+      options.unshift({ id: "auto", label: "Auto" });
+    }
+
+    return options;
+  }, [providers]);
+
+  const selectedTitleModelId = React.useMemo(() => {
+    const explicit = getString(draft?.titleModelId).trim();
+    if (explicit) return explicit;
+    const fallback = getString(draft?.chatModelId).trim();
+    if (fallback) return fallback;
+    return "auto";
+  }, [draft?.titleModelId, draft?.chatModelId]);
+
+  const titlePromptValue = getString(draft?.titlePrompt, DEFAULT_TITLE_PROMPT);
+  const titleModelSelectValue = titleModelOptions.some((option) => option.id === selectedTitleModelId)
+    ? selectedTitleModelId
+    : "auto";
   React.useEffect(() => {
     setCollapsedProviders((prev) => {
       const next: Record<string, boolean> = {};
@@ -283,6 +342,33 @@ export default function SettingsProvidersPage() {
       return next;
     });
   }, []);
+
+  const updateTitleModel = React.useCallback(
+    (modelId: string) => {
+      updateDraft((next) => {
+        next.titleModelId = modelId;
+        if (getString(next.titlePrompt).trim().length === 0) {
+          next.titlePrompt = DEFAULT_TITLE_PROMPT;
+        }
+      });
+    },
+    [updateDraft],
+  );
+
+  const updateTitlePrompt = React.useCallback(
+    (prompt: string) => {
+      updateDraft((next) => {
+        next.titlePrompt = prompt;
+      });
+    },
+    [updateDraft],
+  );
+
+  const resetTitlePrompt = React.useCallback(() => {
+    updateDraft((next) => {
+      next.titlePrompt = DEFAULT_TITLE_PROMPT;
+    });
+  }, [updateDraft]);
 
   const updateProvider = React.useCallback(
     (providerIndex: number, patch: Partial<AnyRecord>) => {
@@ -662,8 +748,13 @@ export default function SettingsProvidersPage() {
   return (
     <div className="flex h-svh flex-col bg-background">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <Button asChild variant="outline" size="icon-sm" title="Back" aria-label="Back">
+        <Button asChild variant="outline" size="icon-sm" title="Back to settings" aria-label="Back to settings">
           <Link to="/settings">
+            <ChevronLeft className="size-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="icon-sm" title="Back to chats" aria-label="Back to chats">
+          <Link to="/">
             <Home className="size-4" />
           </Link>
         </Button>
@@ -695,6 +786,93 @@ export default function SettingsProvidersPage() {
       <div className="min-h-0 flex-1">
         <ScrollArea className="h-full">
           <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6">
+            <div className="rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold">Default Models</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Configure model and prompt used for automatic conversation title generation.
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setDefaultModelsCollapsed((prev) => !prev)}
+                  title={defaultModelsCollapsed ? "Expand default models" : "Collapse default models"}
+                  aria-label={defaultModelsCollapsed ? "Expand default models" : "Collapse default models"}
+                >
+                  <ChevronRight className={`size-4 transition-transform ${defaultModelsCollapsed ? "" : "rotate-90"}`} />
+                </Button>
+              </div>
+
+              {defaultModelsCollapsed ? null : (
+                <div className="mt-4 rounded-md border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="mt-0.5 h-6 w-6"
+                        onClick={() => setTitleSummaryCollapsed((prev) => !prev)}
+                        title={titleSummaryCollapsed ? "Expand title summary model" : "Collapse title summary model"}
+                        aria-label={titleSummaryCollapsed ? "Expand title summary model" : "Collapse title summary model"}
+                      >
+                        <ChevronRight className={`size-4 transition-transform ${titleSummaryCollapsed ? "" : "rotate-90"}`} />
+                      </Button>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">Title Summary Model</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Used for first-reply auto title and regenerate-title action.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {titleSummaryCollapsed ? null : (
+                    <>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <div>
+                          <div className="mb-1 text-xs font-medium">Model</div>
+                          <Select value={titleModelSelectValue} onValueChange={updateTitleModel}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {titleModelOptions.map((item) => (
+                                <SelectItem key={item.id} value={item.id}>
+                                  {item.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="mb-1 flex items-center justify-between gap-2 text-xs font-medium">
+                          <span>Title Summary Prompt</span>
+                          <Button type="button" variant="outline" size="sm" onClick={resetTitlePrompt} disabled={busy}>
+                            Reset Prompt
+                          </Button>
+                        </div>
+                        <Textarea
+                          value={titlePromptValue}
+                          onChange={(event) => updateTitlePrompt(event.target.value)}
+                          rows={8}
+                          disabled={busy}
+                          className="font-mono text-xs"
+                        />
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          Supported placeholders: {'{locale}'}, {'{content}'}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm font-semibold">Providers</div>
               <div className="flex items-center gap-2">
@@ -769,8 +947,17 @@ export default function SettingsProvidersPage() {
                         variant="destructive"
                         size="icon-sm"
                         onClick={() => {
-                          if (!window.confirm("Delete this provider?")) return;
-                          deleteProvider(providerIndex);
+                          void (async () => {
+                            const confirmed = await confirm({
+                              title: "Delete provider?",
+                              description: "This will remove this provider and all of its models.",
+                              confirmText: "Delete",
+                              cancelText: "Cancel",
+                              destructive: true,
+                            });
+                            if (!confirmed) return;
+                            deleteProvider(providerIndex);
+                          })();
                         }}
                         disabled={busy}
                         title="Delete provider"
@@ -1055,8 +1242,17 @@ export default function SettingsProvidersPage() {
                               variant="destructive"
                               size="icon-sm"
                               onClick={() => {
-                                if (!window.confirm("Delete this model?")) return;
-                                deleteModel(providerIndex, modelIndex);
+                                void (async () => {
+                                  const confirmed = await confirm({
+                                    title: "Delete model?",
+                                    description: "This will remove the model from this provider.",
+                                    confirmText: "Delete",
+                                    cancelText: "Cancel",
+                                    destructive: true,
+                                  });
+                                  if (!confirmed) return;
+                                  deleteModel(providerIndex, modelIndex);
+                                })();
                               }}
                               disabled={busy}
                               title="Delete model"

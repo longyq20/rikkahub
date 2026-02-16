@@ -13,6 +13,20 @@ import me.rerere.rikkahub.backend.core.util.stringValue
 import me.rerere.rikkahub.backend.storage.sqlite.BackendPaths
 import java.nio.file.Files
 
+private val DEFAULT_TITLE_PROMPT = """
+    I will give you some dialogue content in the <content> block.
+    You need to summarize the conversation between user and assistant into a short title.
+    1. The title language should be consistent with the user's primary language
+    2. Do not use punctuation or other special symbols
+    3. Reply directly with the title
+    4. Summarize using {locale} language
+    5. The title should not exceed 10 characters
+
+    <content>
+    {content}
+    </content>
+""".trimIndent()
+
 class SettingsJsonRepository(
     private val paths: BackendPaths,
     jwtEnabled: Boolean,
@@ -61,13 +75,25 @@ class SettingsJsonRepository(
             persist(settings)
         }
 
-        if (settings.containsKey("webServerJwtEnabled") && settings.containsKey("webServerAccessPassword")) {
+        val needsJwtPatch = !settings.containsKey("webServerJwtEnabled") || !settings.containsKey("webServerAccessPassword")
+        val needsTitlePatch = !settings.containsKey("titleModelId") || !settings.containsKey("titlePrompt")
+        if (!needsJwtPatch && !needsTitlePatch) {
             return settings
         }
 
         val patched = JsonObject(settings.toMutableMap().apply {
-            this["webServerJwtEnabled"] = JsonPrimitive(jwtEnabled)
-            this["webServerAccessPassword"] = JsonPrimitive(accessPassword)
+            if (needsJwtPatch) {
+                this["webServerJwtEnabled"] = JsonPrimitive(jwtEnabled)
+                this["webServerAccessPassword"] = JsonPrimitive(accessPassword)
+            }
+            if (needsTitlePatch) {
+                if (!containsKey("titleModelId")) {
+                    this["titleModelId"] = JsonPrimitive("auto")
+                }
+                if (!containsKey("titlePrompt")) {
+                    this["titlePrompt"] = JsonPrimitive(DEFAULT_TITLE_PROMPT)
+                }
+            }
         })
         persist(patched)
         return patched

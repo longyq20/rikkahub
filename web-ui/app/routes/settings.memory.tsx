@@ -1,10 +1,11 @@
 import * as React from "react";
 
 import { Link } from "react-router";
-import { Brain, Home, Plus, Save, Trash2 } from "lucide-react";
+import { Brain, ChevronLeft, Home, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
+import { useConfirm, usePrompt } from "~/components/confirm-dialog-provider";
 import { Input } from "~/components/ui/input";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
@@ -37,6 +38,8 @@ export default function SettingsMemoryPage() {
   const [newContent, setNewContent] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const confirm = useConfirm();
+  const prompt = usePrompt();
 
   React.useEffect(() => {
     if (!assistantId && defaultAssistantId) {
@@ -90,7 +93,15 @@ export default function SettingsMemoryPage() {
 
   const editMemory = React.useCallback(
     async (item: MemoryRecord) => {
-      const next = window.prompt("Edit memory", item.content)?.trim();
+      const next = (
+        await prompt({
+          title: "Edit memory",
+          description: "Update memory content",
+          defaultValue: item.content,
+          confirmText: "Save",
+          cancelText: "Cancel",
+        })
+      )?.trim();
       if (next == null) return;
       if (!next) {
         toast.error("Content cannot be empty");
@@ -110,12 +121,19 @@ export default function SettingsMemoryPage() {
         setBusy(false);
       }
     },
-    [assistantId, load],
+    [assistantId, load, prompt],
   );
 
   const deleteMemory = React.useCallback(
     async (item: MemoryRecord) => {
-      if (!window.confirm("Delete this memory?")) return;
+      const confirmed = await confirm({
+        title: "Delete memory?",
+        description: "Delete this memory?",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        destructive: true,
+      });
+      if (!confirmed) return;
 
       setBusy(true);
       try {
@@ -131,14 +149,19 @@ export default function SettingsMemoryPage() {
         setBusy(false);
       }
     },
-    [assistantId, load],
+    [assistantId, confirm, load],
   );
 
   return (
     <div className="flex h-svh flex-col bg-background">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <Button asChild variant="outline" size="icon-sm" title="Back" aria-label="Back">
+        <Button asChild variant="outline" size="icon-sm" title="Back to settings" aria-label="Back to settings">
           <Link to="/settings">
+            <ChevronLeft className="size-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="icon-sm" title="Back to chats" aria-label="Back to chats">
+          <Link to="/">
             <Home className="size-4" />
           </Link>
         </Button>

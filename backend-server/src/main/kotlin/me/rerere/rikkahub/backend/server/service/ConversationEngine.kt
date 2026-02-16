@@ -75,7 +75,7 @@ class ConversationEngine(
         val now = Instant.now().toEpochMilli()
         val userMessage = createMessage(role = "USER", parts = parts, modelId = null)
         val nextConversation = conversation.copy(
-            title = pickConversationTitle(conversation.title, parts),
+            title = conversation.title,
             messageNodes = conversation.messageNodes + MessageNodeRecord(
                 id = randomId(),
                 messages = listOf(userMessage),
@@ -159,10 +159,13 @@ class ConversationEngine(
 
         val now = Instant.now().toEpochMilli()
         val forkId = randomId()
+        val forkNodes = conversation.messageNodes
+            .take(targetIndex + 1)
+            .map { node -> node.copy(id = randomId()) }
         val fork = conversation.copy(
             id = forkId,
             title = if (conversation.title.isBlank()) "Fork" else "${conversation.title} (Fork)",
-            messageNodes = conversation.messageNodes.take(targetIndex + 1),
+            messageNodes = forkNodes,
             createAt = now,
             updateAt = now,
         )
@@ -284,11 +287,11 @@ class ConversationEngine(
         emitConversationChanged(updated.id, updated.assistantId)
     }
 
-    suspend fun updateConversationTitle(conversationId: String, title: String) {
+    suspend fun updateConversationTitle(conversationId: String, title: String, touchUpdateAt: Boolean = true) {
         val conversation = ensureConversation(conversationId)
         val updated = conversation.copy(
             title = title,
-            updateAt = Instant.now().toEpochMilli(),
+            updateAt = if (touchUpdateAt) Instant.now().toEpochMilli() else conversation.updateAt,
         )
         conversationRepository.upsertConversation(updated)
         emitConversationChanged(updated.id, updated.assistantId)
@@ -303,7 +306,7 @@ class ConversationEngine(
         }.getOrNull()?.takeIf { it.isNotBlank() }
 
         val fallback = deriveConversationTitle(conversation)
-        updateConversationTitle(conversationId, generated ?: fallback)
+        updateConversationTitle(conversationId, generated ?: fallback, touchUpdateAt = false)
     }
 
     suspend fun togglePin(conversationId: String) {
@@ -460,6 +463,7 @@ class ConversationEngine(
                 return
             }
             if (!stateAfterGeneration.hasRunnableTools) {
+                maybeGenerateConversationTitle(updated)
                 return
             }
 
@@ -467,6 +471,25 @@ class ConversationEngine(
                 emitError(conversationId, "Tool chain loop limit reached")
             }
         }
+    }
+
+    private suspend fun maybeGenerateConversationTitle(conversation: ConversationRecord) {
+        if (conversation.title.isNotBlank()) return
+
+        val generated = runCatching {
+            llmGenerator.generateTitle(settingsRepository.current(), conversation)
+        }.getOrNull()?.trim().orEmpty()
+        if (generated.isBlank()) return
+
+        val latest = conversationRepository.getConversationById(conversation.id) ?: return
+        if (latest.title.isNotBlank()) return
+
+        val updated = latest.copy(
+            title = generated,
+            updateAt = Instant.now().toEpochMilli(),
+        )
+        conversationRepository.upsertConversation(updated)
+        emitConversationChanged(updated.id, updated.assistantId)
     }
 
     private suspend fun executeRunnableTools(settings: JsonObject, conversation: ConversationRecord): ToolExecutionResult {
@@ -572,14 +595,6 @@ class ConversationEngine(
             usage = usage,
             translation = null,
         )
-    }
-
-    private fun pickConversationTitle(currentTitle: String, parts: List<JsonObject>): String {
-        if (currentTitle.isNotBlank()) return currentTitle
-        val textPart = parts.firstOrNull { (it.stringValue("type") ?: "") == "text" }
-        val raw = textPart?.stringValue("text")?.trim().orEmpty()
-        if (raw.isEmpty()) return "New Conversation"
-        return raw.replace(Regex("\\s+"), " ").take(48)
     }
 
     private fun deriveConversationTitle(conversation: ConversationRecord): String {
