@@ -22,3 +22,6 @@ data/
 openjdk-*.zip
 gradle-*-bin.zip
 .tools/
+.tmp-backend-run.out.log
+.tmp-backend-run.err.log
+**/.tmp-backend-data*/
