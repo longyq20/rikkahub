@@ -12,7 +12,7 @@ WORKDIR /app
 COPY gradle/ gradle/
 COPY gradlew gradlew
 COPY gradlew.bat gradlew.bat
-COPY gradle.properties build.gradle.kts settings.backend.gradle.kts ./
+COPY gradle.properties build.gradle.kts settings.gradle.kts ./
 COPY backend-core/ backend-core/
 COPY backend-storage-sqlite/ backend-storage-sqlite/
 COPY backend-migration/ backend-migration/
@@ -39,3 +39,4 @@ ENV ACCESS_PASSWORD=
 VOLUME ["/data"]
 EXPOSE 8080
 ENTRYPOINT ["/app/backend-server/bin/backend-server"]
+
