@@ -1,4 +1,4 @@
-﻿package me.rerere.rikkahub.backend.server.service
+package me.rerere.rikkahub.backend.server.service
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -375,24 +375,85 @@ class ConversationEngine(
                 return
             }
 
-            val generation = llmGenerator.generateReply(settings, latest)
-            val assistantMessage = createMessage(
-                role = "ASSISTANT",
-                parts = generation.parts,
-                modelId = generation.modelId,
-                usage = generation.usage,
-            )
+            var streamNodeId: String? = null
+            var lastPartial: AssistantGenerationResult? = null
 
-            val updated = latest.copy(
-                messageNodes = latest.messageNodes + MessageNodeRecord(
-                    id = randomId(),
-                    messages = listOf(assistantMessage),
-                    selectIndex = 0,
-                ),
-                updateAt = Instant.now().toEpochMilli(),
-            )
-            conversationRepository.upsertConversation(updated)
-            emitConversationChanged(updated.id, updated.assistantId)
+            suspend fun upsertAssistantStream(result: AssistantGenerationResult, finished: Boolean): ConversationRecord {
+                val current = conversationRepository.getConversationById(conversationId) ?: latest
+                val now = Instant.now().toEpochMilli()
+                val finishedAt = if (finished) Instant.now().toString() else null
+                val parts = result.parts.ifEmpty { listOf(JsonObject(mapOf("type" to JsonPrimitive("text"), "text" to JsonPrimitive("")))) }
+
+                val updated = if (streamNodeId == null) {
+                    val nodeId = randomId()
+                    streamNodeId = nodeId
+                    val message = MessageRecord(
+                        id = randomId(),
+                        role = "ASSISTANT",
+                        parts = parts,
+                        annotations = emptyList(),
+                        createdAt = Instant.now().toString(),
+                        finishedAt = finishedAt,
+                        modelId = result.modelId,
+                        usage = if (finished) result.usage else null,
+                        translation = null,
+                    )
+                    current.copy(
+                        messageNodes = current.messageNodes + MessageNodeRecord(
+                            id = nodeId,
+                            messages = listOf(message),
+                            selectIndex = 0,
+                        ),
+                        updateAt = now,
+                    )
+                } else {
+                    current.copy(
+                        messageNodes = current.messageNodes.map { node ->
+                            if (node.id != streamNodeId) return@map node
+
+                            val existing = node.messages.getOrNull(node.selectIndex) ?: node.messages.firstOrNull()
+                            val baseMessage = existing ?: MessageRecord(
+                                id = randomId(),
+                                role = "ASSISTANT",
+                                parts = emptyList(),
+                                annotations = emptyList(),
+                                createdAt = Instant.now().toString(),
+                                finishedAt = null,
+                                modelId = result.modelId,
+                                usage = null,
+                                translation = null,
+                            )
+
+                            val merged = baseMessage.copy(
+                                parts = parts,
+                                finishedAt = finishedAt,
+                                modelId = result.modelId ?: baseMessage.modelId,
+                                usage = if (finished) result.usage else baseMessage.usage,
+                            )
+                            node.copy(messages = listOf(merged), selectIndex = 0)
+                        },
+                        updateAt = now,
+                    )
+                }
+
+                conversationRepository.upsertConversation(updated)
+                emitConversationChanged(updated.id, updated.assistantId)
+                return updated
+            }
+
+            val generation = llmGenerator.generateReplyStreaming(settings, latest) { partial ->
+                if (partial.parts.isEmpty()) {
+                    return@generateReplyStreaming
+                }
+                if (lastPartial == partial) {
+                    return@generateReplyStreaming
+                }
+
+                lastPartial = partial
+                upsertAssistantStream(partial, finished = false)
+            }
+
+            val updated = upsertAssistantStream(generation, finished = true)
 
             val stateAfterGeneration = analyzeToolState(updated)
             if (stateAfterGeneration.hasPendingTools) {

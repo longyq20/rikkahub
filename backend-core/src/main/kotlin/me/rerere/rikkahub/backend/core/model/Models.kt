@@ -2,7 +2,9 @@
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.rikkahub.backend.core.api.ConversationDto
 import me.rerere.rikkahub.backend.core.api.ConversationListDto
 import me.rerere.rikkahub.backend.core.api.MessageDto
@@ -54,12 +56,14 @@ data class ManagedFileRecord(
     val createdAt: Long,
     val updatedAt: Long,
 )
+
 @Serializable
 data class AssistantMemoryRecord(
     val id: Int,
     val assistantId: String,
     val content: String,
 )
+
 fun ConversationRecord.toListDto(isGenerating: Boolean = false): ConversationListDto =
     ConversationListDto(
         id = id,
@@ -99,6 +103,79 @@ fun MessageRecord.toDto(): MessageDto = MessageDto(
     createdAt = createdAt,
     finishedAt = finishedAt,
     modelId = modelId,
-    usage = usage,
+    usage = normalizeUsageForWeb(usage),
     translation = translation,
 )
+
+private fun normalizeUsageForWeb(rawUsage: JsonElement?): JsonElement? {
+    val usage = rawUsage as? JsonObject ?: return null
+
+    val promptTokens = usage.longFromPaths(
+        "promptTokens",
+        "prompt_tokens",
+        "promptTokenCount",
+        "input_tokens",
+        "inputTokenCount",
+    )
+    val completionTokens = usage.longFromPaths(
+        "completionTokens",
+        "completion_tokens",
+        "completionTokenCount",
+        "output_tokens",
+        "outputTokenCount",
+        "candidatesTokenCount",
+    )
+    val cachedTokens = usage.longFromPaths(
+        "cachedTokens",
+        "cached_tokens",
+        "prompt_tokens_details.cached_tokens",
+        "promptTokensDetails.cachedTokens",
+    ) ?: 0L
+    val totalTokens = usage.longFromPaths(
+        "totalTokens",
+        "total_tokens",
+        "totalTokenCount",
+    )
+
+    if (promptTokens == null && completionTokens == null && totalTokens == null) {
+        return null
+    }
+
+    val normalizedPrompt = promptTokens?.coerceAtLeast(0) ?: 0L
+    val normalizedCompletion = completionTokens?.coerceAtLeast(0) ?: 0L
+    val normalizedCached = cachedTokens.coerceAtLeast(0)
+    val normalizedTotal = (totalTokens ?: (normalizedPrompt + normalizedCompletion)).coerceAtLeast(0)
+
+    return JsonObject(
+        mapOf(
+            "promptTokens" to JsonPrimitive(normalizedPrompt),
+            "completionTokens" to JsonPrimitive(normalizedCompletion),
+            "cachedTokens" to JsonPrimitive(normalizedCached),
+            "totalTokens" to JsonPrimitive(normalizedTotal),
+        )
+    )
+}
+
+private fun JsonObject.longFromPaths(vararg paths: String): Long? {
+    paths.forEach { path ->
+        this.longAtPath(path)?.let { return it }
+    }
+    return null
+}
+
+private fun JsonObject.longAtPath(path: String): Long? {
+    val keys = path.split('.')
+    var current: JsonElement = this
+    keys.forEach { key ->
+        current = (current as? JsonObject)?.get(key) ?: return null
+    }
+    return current.longValueOrNull()
+}
+
+private fun JsonElement.longValueOrNull(): Long? {
+    val primitive = this as? JsonPrimitive ?: return null
+    if (primitive is JsonNull) return null
+    return primitive.content.toLongOrNull()
+        ?: primitive.content.toDoubleOrNull()?.takeIf { it.isFinite() }?.toLong()
+}
+

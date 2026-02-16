@@ -1,0 +1,52 @@
+{
+  "hub": {
+    "meta": {
+      "title": "Settings"
+    },
+    "header": {
+      "back": "Back to chats",
+      "title": "Settings",
+      "description": "Configure portable backend and WebUI features"
+    },
+    "sections": {
+      "search": {
+        "title": "Search",
+        "description": "Web search toggle and service selection."
+      },
+      "providers": {
+        "title": "Providers & Models",
+        "description": "Configure provider baseUrl/apiKey and model tool toggles."
+      },
+      "assistants": {
+        "title": "Assistants",
+        "description": "Manage assistant profiles and assistant-level generation settings."
+      },
+      "mcp": {
+        "title": "MCP",
+        "description": "Manage MCP servers and tool enable/approval settings."
+      },
+      "prompts": {
+        "title": "Prompts",
+        "description": "Manage mode injections and lorebooks templates."
+      },
+      "memory": {
+        "title": "Memory",
+        "description": "Manage long-term memory records per assistant."
+      },
+      "backup": {
+        "title": "Backup",
+        "description": "Import/export a portable zip backup."
+      },
+      "advanced": {
+        "title": "Advanced",
+        "description": "Raw settings.json editor (dangerous)."
+      }
+    },
+    "tips": {
+      "title": "Tips",
+      "item_1": "Settings changes are applied via backend SSE; reload if UI looks stale.",
+      "item_2": "Avoid pasting secrets into screenshots or logs.",
+      "item_3": "Use Backup export before editing Advanced settings."
+    }
+  }
+}

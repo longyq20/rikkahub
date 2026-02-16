@@ -99,6 +99,24 @@ data class UpdateFavoriteModelsRequest(
 )
 
 @Serializable
+data class FetchProviderModelsRequest(
+    val providerId: String,
+)
+
+@Serializable
+data class ProviderModelFetchDto(
+    val modelId: String,
+    val displayName: String,
+    val type: String,
+)
+
+@Serializable
+data class FetchProviderModelsResponse(
+    val providerId: String,
+    val models: List<ProviderModelFetchDto>,
+)
+
+@Serializable
 data class WebAuthTokenRequest(
     val password: String,
 )
@@ -243,3 +261,5 @@ data class MigrationImportReportDto(
     val importedMessageNodes: Int,
     val importedFiles: Int,
 )
+
+

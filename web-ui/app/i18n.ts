@@ -6,11 +6,13 @@ import enUSInput from "./locales/en-US/input.json";
 import enUSMarkdown from "./locales/en-US/markdown.json";
 import enUSMessage from "./locales/en-US/message.json";
 import enUSPage from "./locales/en-US/page.json";
+import enUSSettings from "./locales/en-US/settings.json";
 import zhCNCommon from "./locales/zh-CN/common.json";
 import zhCNInput from "./locales/zh-CN/input.json";
 import zhCNMarkdown from "./locales/zh-CN/markdown.json";
 import zhCNMessage from "./locales/zh-CN/message.json";
 import zhCNPage from "./locales/zh-CN/page.json";
+import zhCNSettings from "./locales/zh-CN/settings.json";
 
 const SUPPORTED_LANGUAGES = ["zh-CN", "en-US"] as const;
 
@@ -36,6 +38,7 @@ void i18n.use(initReactI18next).init({
       markdown: zhCNMarkdown,
       message: zhCNMessage,
       page: zhCNPage,
+      settings: zhCNSettings,
     },
     "en-US": {
       common: enUSCommon,
@@ -43,13 +46,14 @@ void i18n.use(initReactI18next).init({
       markdown: enUSMarkdown,
       message: enUSMessage,
       page: enUSPage,
+      settings: enUSSettings,
     },
   },
   lng: getInitialLanguage(),
   fallbackLng: "zh-CN",
   supportedLngs: [...SUPPORTED_LANGUAGES],
   defaultNS: "common",
-  ns: ["common", "input", "markdown", "message", "page"],
+  ns: ["common", "input", "markdown", "message", "page", "settings"],
   interpolation: {
     escapeValue: false,
   },

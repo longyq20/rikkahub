@@ -1,79 +1,103 @@
 import * as React from "react";
 
 import { Link } from "react-router";
-import { Brain, Database, FileText, Globe, Home, Puzzle, Sliders, Wrench } from "lucide-react";
+import {
+  Brain,
+  Database,
+  FileText,
+  Globe,
+  Home,
+  Puzzle,
+  Sliders,
+  UserCog,
+  Wrench,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "~/components/ui/button";
 import { ScrollArea } from "~/components/ui/scroll-area";
+import i18n from "~/i18n";
 
 export function meta() {
-  return [{ title: "Settings" }];
+  return [{ title: i18n.t("settings:hub.meta.title") }];
 }
 
 const SECTIONS: Array<{
   to: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   {
     to: "/settings/search",
-    title: "Search",
-    description: "Web search toggle and service selection.",
+    titleKey: "hub.sections.search.title",
+    descriptionKey: "hub.sections.search.description",
     icon: Globe,
   },
   {
     to: "/settings/providers",
-    title: "Providers & Models",
-    description: "Configure provider baseUrl/apiKey and model tool toggles.",
+    titleKey: "hub.sections.providers.title",
+    descriptionKey: "hub.sections.providers.description",
     icon: Sliders,
   },
   {
+    to: "/settings/assistants",
+    titleKey: "hub.sections.assistants.title",
+    descriptionKey: "hub.sections.assistants.description",
+    icon: UserCog,
+  },
+  {
     to: "/settings/mcp",
-    title: "MCP",
-    description: "Manage MCP servers and tool enable/approval settings.",
+    titleKey: "hub.sections.mcp.title",
+    descriptionKey: "hub.sections.mcp.description",
     icon: Puzzle,
   },
   {
     to: "/settings/prompts",
-    title: "Prompts",
-    description: "Manage mode injections and lorebooks templates.",
+    titleKey: "hub.sections.prompts.title",
+    descriptionKey: "hub.sections.prompts.description",
     icon: FileText,
   },
   {
     to: "/settings/memory",
-    title: "Memory",
-    description: "Manage long-term memory records per assistant.",
+    titleKey: "hub.sections.memory.title",
+    descriptionKey: "hub.sections.memory.description",
     icon: Brain,
   },
   {
     to: "/settings/backup",
-    title: "Backup",
-    description: "Import/export a portable zip backup.",
+    titleKey: "hub.sections.backup.title",
+    descriptionKey: "hub.sections.backup.description",
     icon: Database,
   },
   {
     to: "/settings/advanced",
-    title: "Advanced",
-    description: "Raw settings.json editor (dangerous).",
+    titleKey: "hub.sections.advanced.title",
+    descriptionKey: "hub.sections.advanced.description",
     icon: Wrench,
   },
 ];
 
 export default function SettingsHubPage() {
+  const { t } = useTranslation("settings");
+
   return (
     <div className="flex h-svh flex-col bg-background">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <Button asChild variant="outline" size="icon-sm" title="Back to chats" aria-label="Back">
+        <Button
+          asChild
+          variant="outline"
+          size="icon-sm"
+          title={t("hub.header.back")}
+          aria-label={t("hub.header.back")}
+        >
           <Link to="/">
             <Home className="size-4" />
           </Link>
         </Button>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">Settings</div>
-          <div className="truncate text-xs text-muted-foreground">
-            Configure portable backend and WebUI features
-          </div>
+          <div className="truncate text-sm font-medium">{t("hub.header.title")}</div>
+          <div className="truncate text-xs text-muted-foreground">{t("hub.header.description")}</div>
         </div>
       </div>
 
@@ -95,9 +119,9 @@ export default function SettingsHubPage() {
                         <Icon className="size-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold">{section.title}</div>
+                        <div className="text-sm font-semibold">{t(section.titleKey)}</div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {section.description}
+                          {t(section.descriptionKey)}
                         </div>
                       </div>
                     </Link>
@@ -109,12 +133,12 @@ export default function SettingsHubPage() {
             <div className="mt-6 rounded-lg border p-4">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <Wrench className="size-4" />
-                Tips
+                {t("hub.tips.title")}
               </div>
               <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground">
-                <li>Settings changes are applied via backend SSE; reload if UI looks stale.</li>
-                <li>Avoid pasting secrets into screenshots or logs.</li>
-                <li>Use Backup export before editing Advanced settings.</li>
+                <li>{t("hub.tips.item_1")}</li>
+                <li>{t("hub.tips.item_2")}</li>
+                <li>{t("hub.tips.item_3")}</li>
               </ul>
             </div>
           </div>

@@ -332,8 +332,15 @@ export function ChatInput({
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (event.key !== "Enter") return;
-      if (!sendOnEnter || isGenerating) return;
-      if (event.shiftKey || event.nativeEvent.isComposing) return;
+      if (isGenerating || event.nativeEvent.isComposing) return;
+
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        void handlePrimaryAction();
+        return;
+      }
+
+      if (!sendOnEnter || event.shiftKey) return;
 
       event.preventDefault();
       void handlePrimaryAction();
@@ -688,3 +695,4 @@ function QuickMessageButton({
     </DropdownMenu>
   );
 }
+

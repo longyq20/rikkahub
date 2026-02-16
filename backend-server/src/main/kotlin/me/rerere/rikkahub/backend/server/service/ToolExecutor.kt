@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.ZonedDateTime
 import java.time.format.TextStyle
+import java.util.Base64
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 
@@ -77,7 +78,7 @@ class PortableToolExecutor(
             val payload: JsonElement = when {
                 trimmed == "get_time_info" -> getTimeInfo()
                 trimmed == "memory_tool" -> executeMemoryTool(settings, assistantId, input)
-                trimmed == "search_web" -> executeSearchWeb(input)
+                trimmed == "search_web" -> executeSearchWeb(settings, input)
                 trimmed == "scrape_web" -> executeScrapeWeb(input)
                 trimmed == "clipboard_tool" -> JsonObject(
                     mapOf(
@@ -258,12 +259,45 @@ class PortableToolExecutor(
             }
         }
     }
-
-    private suspend fun executeSearchWeb(input: String): JsonObject {
+    private suspend fun executeSearchWeb(settings: JsonObject, input: String): JsonObject {
         val args = parseInput(input)
         val query = args.stringValue("query")?.trim().orEmpty()
         require(query.isNotBlank()) { "query is required" }
 
+        val resultSize = searchResultSize(settings)
+        val service = resolveSearchService(settings)
+
+        return when (service?.type) {
+            "searxng" -> executeSearXngSearch(query, service.options, resultSize)
+            else -> executeDuckDuckGoSearch(query, resultSize)
+        }
+    }
+
+    private data class SearchServiceSelection(
+        val type: String,
+        val options: JsonObject,
+    )
+
+    private fun resolveSearchService(settings: JsonObject): SearchServiceSelection? {
+        val services = settings.arrayValue("searchServices")
+            ?.mapNotNull { it as? JsonObject }
+            .orEmpty()
+        if (services.isEmpty()) return null
+
+        val selected = (settings["searchServiceSelected"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+        val index = selected.coerceIn(0, services.lastIndex)
+        val options = services[index]
+        val type = options.stringValue("type")?.trim()?.lowercase().orEmpty()
+        return SearchServiceSelection(type = type, options = options)
+    }
+
+    private fun searchResultSize(settings: JsonObject): Int {
+        val common = settings["searchCommonOptions"] as? JsonObject
+        val value = (common?.get("resultSize") as? JsonPrimitive)?.content?.toIntOrNull() ?: 10
+        return value.coerceAtLeast(1)
+    }
+
+    private suspend fun executeDuckDuckGoSearch(query: String, resultSize: Int): JsonObject {
         val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8)
         val request = HttpRequest.newBuilder()
             .uri(URI.create("https://api.duckduckgo.com/?q=$encoded&format=json&no_html=1&skip_disambig=1"))
@@ -281,7 +315,7 @@ class PortableToolExecutor(
         val items = mutableListOf<JsonObject>()
         collectDuckItems(json.arrayValue("RelatedTopics"), items)
 
-        val indexedItems = items.take(8).mapIndexed { index, item ->
+        val indexedItems = items.take(resultSize).mapIndexed { index, item ->
             JsonObject(
                 item.toMutableMap().apply {
                     this["id"] = JsonPrimitive(randomId().take(6))
@@ -294,6 +328,76 @@ class PortableToolExecutor(
             mapOf(
                 "answer" to JsonPrimitive(json.stringValue("AbstractText")?.trim().orEmpty()),
                 "items" to JsonArray(indexedItems),
+            )
+        )
+    }
+
+    private suspend fun executeSearXngSearch(
+        query: String,
+        options: JsonObject,
+        resultSize: Int,
+    ): JsonObject {
+        val baseUrl = options.stringValue("url")?.trim()?.trimEnd('/').orEmpty()
+        require(baseUrl.isNotBlank()) { "SearXNG URL cannot be empty" }
+
+        val queryParts = mutableListOf(
+            "q=${URLEncoder.encode(query, StandardCharsets.UTF_8)}",
+            "format=json",
+        )
+
+        options.stringValue("engines")?.trim()?.takeIf { it.isNotBlank() }?.let {
+            queryParts += "engines=${URLEncoder.encode(it, StandardCharsets.UTF_8)}"
+        }
+        options.stringValue("language")?.trim()?.takeIf { it.isNotBlank() }?.let {
+            queryParts += "language=${URLEncoder.encode(it, StandardCharsets.UTF_8)}"
+        }
+
+        val requestBuilder = HttpRequest.newBuilder()
+            .uri(URI.create("$baseUrl/search?${queryParts.joinToString("&")}"))
+            .timeout(Duration.ofSeconds(30))
+            .header("User-Agent", "RikkaHub-Portable/1.0")
+            .GET()
+
+        val username = options.stringValue("username")?.trim().orEmpty()
+        val password = options.stringValue("password")?.trim().orEmpty()
+        if (username.isNotBlank() && password.isNotBlank()) {
+            val token = Base64.getEncoder().encodeToString("$username:$password".toByteArray(StandardCharsets.UTF_8))
+            requestBuilder.header("Authorization", "Basic $token")
+        }
+
+        val response = withContext(Dispatchers.IO) {
+            httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
+        }
+        require(response.statusCode() in 200..299) {
+            val body = response.body().take(256)
+            "SearXNG request failed (${response.statusCode()}): $body"
+        }
+
+        val body = (AppJson.parseToJsonElement(response.body()) as? JsonObject) ?: JsonObject(emptyMap())
+        val results = body.arrayValue("results")
+            ?.mapNotNull { it as? JsonObject }
+            .orEmpty()
+            .take(resultSize)
+            .mapIndexed { index, item ->
+                val title = item.stringValue("title")?.trim().orEmpty()
+                val url = item.stringValue("url")?.trim().orEmpty()
+                val text = item.stringValue("content")?.trim().orEmpty()
+
+                JsonObject(
+                    mapOf(
+                        "id" to JsonPrimitive(randomId().take(6)),
+                        "index" to JsonPrimitive(index + 1),
+                        "title" to JsonPrimitive(title.ifBlank { url }),
+                        "url" to JsonPrimitive(url),
+                        "text" to JsonPrimitive(text),
+                    )
+                )
+            }
+
+        return JsonObject(
+            mapOf(
+                "answer" to JsonPrimitive(""),
+                "items" to JsonArray(results),
             )
         )
     }

@@ -92,3 +92,20 @@ export interface ConversationErrorEventDto {
   type: "error";
   message: string;
 }
+
+export interface FetchProviderModelsRequestDto {
+  providerId: string;
+}
+
+export interface ProviderModelFetchDto {
+  modelId: string;
+  displayName: string;
+  type: string;
+}
+
+export interface FetchProviderModelsResponseDto {
+  providerId: string;
+  models: ProviderModelFetchDto[];
+}
+
+

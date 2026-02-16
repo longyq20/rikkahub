@@ -40,6 +40,8 @@ import {
   type ConversationNodeUpdateEventDto,
   type ConversationErrorEventDto,
   type ConversationSnapshotEventDto,
+  type ConversationListDto,
+  type PagedResult,
   type ProviderModel,
   type Settings,
   type UIMessagePart,
@@ -79,6 +81,49 @@ interface EditingSession {
   textPartIndex: number | null;
 }
 
+function deepCloneSettings(settings: Settings): Settings {
+  return JSON.parse(JSON.stringify(settings)) as Settings;
+}
+
+function createDefaultAssistant(index: number, fallbackModelId: string) {
+  return {
+    id: uuidv4(),
+    name: `Assistant ${index + 1}`,
+    chatModelId: fallbackModelId,
+    tags: [],
+    systemPrompt: "",
+    messageTemplate: "{{ message }}",
+    quickMessages: [],
+    customHeaders: [],
+    customBodies: [],
+    mcpServers: [],
+    modeInjectionIds: [],
+    lorebookIds: [],
+    localTools: ["time_info"],
+    streamOutput: true,
+  };
+}
+
+async function listAssistantConversations(assistantId: string): Promise<ConversationListDto[]> {
+  await api.post<{ status: string }>("settings/assistant", { assistantId });
+  const result: ConversationListDto[] = [];
+
+  while (true) {
+    const page = await api.get<PagedResult<ConversationListDto>>("conversations/paged", {
+      searchParams: { offset: 0, limit: 100 },
+    });
+    if (page.items.length === 0) break;
+    result.push(...page.items);
+
+    for (const conversation of page.items) {
+      await api.delete<Record<string, never>>(`conversations/${conversation.id}`, {
+        parseJson: (raw) => (raw ? JSON.parse(raw) : {}),
+      });
+    }
+  }
+
+  return result;
+}
 function createHomeDraftId() {
   return `home-${uuidv4()}`;
 }
@@ -763,6 +808,114 @@ function ConversationsPageInner() {
     [navigate, refreshList, resetDetail, routeId, setActiveId],
   );
 
+  const handleCreateAssistantAndOpenSettings = React.useCallback(async () => {
+    if (!settings) {
+      throw new Error("Settings are not ready");
+    }
+
+    const next = deepCloneSettings(settings);
+    const nextAssistants = Array.isArray(next.assistants) ? [...next.assistants] : [];
+
+    let fallbackModelId =
+      typeof next.chatModelId === "string" && next.chatModelId.trim().length > 0
+        ? next.chatModelId.trim()
+        : "auto";
+    for (const provider of next.providers ?? []) {
+      if (provider.enabled === false) continue;
+      const chatModel = provider.models.find(
+        (model) => model.type === "CHAT" && typeof model.id === "string" && model.id.trim().length > 0,
+      );
+      if (!chatModel) continue;
+      fallbackModelId = chatModel.id;
+      break;
+    }
+
+    const createdAssistant = createDefaultAssistant(nextAssistants.length, fallbackModelId);
+    nextAssistants.push(createdAssistant);
+    next.assistants = nextAssistants;
+    next.assistantId = createdAssistant.id;
+
+    await api.post<{ status: string }>("settings/replace", next);
+
+    setActiveId(null);
+    resetDetail();
+    setHomeDraftId(createHomeDraftId());
+    if (routeId) {
+      navigate("/", { replace: true });
+    }
+    refreshList();
+
+    navigate(
+      `/settings/assistants?assistantId=${encodeURIComponent(createdAssistant.id)}&mode=new`,
+    );
+  }, [navigate, refreshList, resetDetail, routeId, setActiveId, setHomeDraftId, settings]);
+
+  const handleEditAssistantInSettings = React.useCallback(
+    async (assistantId: string) => {
+      navigate(`/settings/assistants?assistantId=${encodeURIComponent(assistantId)}`);
+    },
+    [navigate],
+  );
+
+  const handleDeleteAssistantInSidebar = React.useCallback(
+    async (assistantId: string) => {
+      if (!settings) {
+        throw new Error("Settings are not ready");
+      }
+
+      if (assistants.length <= 1) {
+        throw new Error("At least one assistant is required");
+      }
+
+      const targetAssistant = assistants.find((assistant) => assistant.id === assistantId);
+      if (!targetAssistant) {
+        throw new Error("Assistant not found");
+      }
+
+      const targetName = getAssistantDisplayName(targetAssistant.name);
+      const confirmed = window.confirm(
+        `Delete assistant "${targetName}" and all related conversations? This action cannot be undone.`,
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      const fallbackAssistant = assistants.find((assistant) => assistant.id !== assistantId);
+      if (!fallbackAssistant) {
+        throw new Error("At least one assistant is required");
+      }
+
+      const previousAssistantId = currentAssistantId ?? settings.assistantId ?? fallbackAssistant.id;
+      const nextAssistantId = previousAssistantId === assistantId ? fallbackAssistant.id : previousAssistantId;
+
+      try {
+        await listAssistantConversations(assistantId);
+
+        const next = deepCloneSettings(settings);
+        next.assistants = (next.assistants ?? []).filter((assistant) => assistant.id !== assistantId);
+        next.assistantId = nextAssistantId;
+
+        await api.post<{ status: string }>("settings/replace", next);
+      } finally {
+        if (nextAssistantId) {
+          await api.post<{ status: string }>("settings/assistant", { assistantId: nextAssistantId });
+        }
+      }
+
+      if (currentAssistantId === assistantId) {
+        setActiveId(null);
+        resetDetail();
+        setHomeDraftId(createHomeDraftId());
+        if (routeId) {
+          navigate("/", { replace: true });
+        }
+      }
+
+      refreshList();
+      toast.success(`Assistant "${targetName}" deleted`);
+    },
+    [assistants, currentAssistantId, navigate, refreshList, resetDetail, routeId, setActiveId, setHomeDraftId, settings],
+  );
   const handleToolApproval = React.useCallback(
     async (toolCallId: string, approved: boolean, reason: string) => {
       if (!activeId) return;
@@ -1044,6 +1197,9 @@ function ConversationsPageInner() {
         currentAssistantId={currentAssistantId}
         onSelect={handleSelect}
         onAssistantChange={handleAssistantChange}
+        onCreateAssistant={handleCreateAssistantAndOpenSettings}
+        onEditAssistant={handleEditAssistantInSettings}
+        onDeleteAssistant={handleDeleteAssistantInSidebar}
         onPin={handleTogglePinConversation}
         onRegenerateTitle={handleRegenerateConversationTitle}
         onMoveToAssistant={handleMoveConversation}
@@ -1118,3 +1274,4 @@ function ConversationsPageInner() {
     </SidebarProvider>
   );
 }
+

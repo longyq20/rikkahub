@@ -41,6 +41,18 @@ function normalizeKeyword(value: string) {
   return value.trim().toLowerCase();
 }
 
+function isChatSelectableModel(model: ProviderModel): boolean {
+  if (model.type === "CHAT") {
+    return true;
+  }
+  if (model.type !== "IMAGE") {
+    return false;
+  }
+
+  const inputModalities = (model.inputModalities ?? []).map((modality) => modality.toUpperCase());
+  return inputModalities.length === 0 || inputModalities.includes("TEXT");
+}
+
 function formatModality(model: ProviderModel): string {
   const input = (model.inputModalities ?? []).join("+") || "TEXT";
   const output = (model.outputModalities ?? []).join("+") || "TEXT";
@@ -169,7 +181,7 @@ export function ModelList({ disabled = false, className, onChanged }: ModelListP
     return settings.providers
       .filter((provider) => provider.enabled)
       .flatMap((provider) => provider.models)
-      .filter((model) => model.type === "CHAT");
+      .filter((model) => isChatSelectableModel(model));
   }, [settings]);
 
   const sections = React.useMemo<ModelSection[]>(() => {
@@ -183,7 +195,7 @@ export function ModelList({ disabled = false, className, onChanged }: ModelListP
       .filter((provider) => provider.enabled)
       .map((provider) => {
         const models = provider.models.filter((model) => {
-          if (model.type !== "CHAT") {
+          if (!isChatSelectableModel(model)) {
             return false;
           }
 

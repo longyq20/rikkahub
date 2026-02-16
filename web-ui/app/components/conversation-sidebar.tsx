@@ -126,8 +126,8 @@ const COLOR_THEME_OPTIONS: Array<{
 ];
 
 const LANGUAGE_OPTIONS = [
-  { value: 'zh-CN', label: '简体中文' },
-  { value: 'en-US', label: 'English' },
+  { value: "zh-CN", label: "Chinese (Simplified)" },
+  { value: "en-US", label: "English" },
 ] as const;
 
 type ConversationListItem =
@@ -195,6 +195,9 @@ export interface ConversationSidebarProps {
   currentAssistantId: string | null;
   onSelect: (id: string) => void;
   onAssistantChange: (assistantId: string) => Promise<void>;
+  onCreateAssistant?: () => Promise<void> | void;
+  onEditAssistant?: (assistantId: string) => Promise<void> | void;
+  onDeleteAssistant?: (assistantId: string) => Promise<void>;
   onPin?: (id: string) => Promise<void>;
   onRegenerateTitle?: (id: string) => Promise<void>;
   onMoveToAssistant?: (id: string, assistantId: string) => Promise<void>;
@@ -533,6 +536,9 @@ export function ConversationSidebar({
   currentAssistantId,
   onSelect,
   onAssistantChange,
+  onCreateAssistant,
+  onEditAssistant,
+  onDeleteAssistant,
   onPin,
   onRegenerateTitle,
   onMoveToAssistant,
@@ -550,6 +556,7 @@ export function ConversationSidebar({
   const [selectedTagIds, setSelectedTagIds] = React.useState<string[]>([]);
   const [switchingAssistantId, setSwitchingAssistantId] = React.useState<string | null>(null);
   const [switchError, setSwitchError] = React.useState<string | null>(null);
+  const [assistantActionPendingId, setAssistantActionPendingId] = React.useState<string | null>(null);
   const [showBackToTop, setShowBackToTop] = React.useState(false);
 
   const currentTheme = theme;
@@ -618,6 +625,46 @@ export function ConversationSidebar({
     [currentAssistantId, onAssistantChange],
   );
 
+  const handleCreateAssistant = React.useCallback(async () => {
+    if (!onCreateAssistant) return;
+    setSwitchError(null);
+    try {
+      await onCreateAssistant();
+      setPickerOpen(false);
+    } catch (createError) {
+      const message = createError instanceof Error ? createError.message : "Failed to create assistant";
+      setSwitchError(message);
+    }
+  }, [onCreateAssistant]);
+
+  const handleEditAssistant = React.useCallback(async (assistantId: string) => {
+    if (!onEditAssistant) return;
+    setSwitchError(null);
+    try {
+      await onEditAssistant(assistantId);
+      setPickerOpen(false);
+    } catch (editError) {
+      const message = editError instanceof Error ? editError.message : "Failed to open assistant settings";
+      setSwitchError(message);
+    }
+  }, [onEditAssistant]);
+
+  const handleDeleteAssistant = React.useCallback(
+    async (assistantId: string) => {
+      if (!onDeleteAssistant) return;
+      setSwitchError(null);
+      setAssistantActionPendingId(assistantId);
+      try {
+        await onDeleteAssistant(assistantId);
+      } catch (deleteError) {
+        const message = deleteError instanceof Error ? deleteError.message : "Failed to delete assistant";
+        setSwitchError(message);
+      } finally {
+        setAssistantActionPendingId(null);
+      }
+    },
+    [onDeleteAssistant],
+  );
   const handleBackToTop = React.useCallback(() => {
     const scrollContainer = document.getElementById("conversationScrollTarget");
     if (!scrollContainer) return;
@@ -795,8 +842,24 @@ export function ConversationSidebar({
             </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[80svh] max-w-xl overflow-hidden p-0">
-            <DialogHeader className="border-b px-6 py-4">
-              <DialogTitle>{t("conversation_sidebar.select_assistant")}</DialogTitle>
+            <DialogHeader className="border-b px-6 py-4 pr-16">
+              <div className="flex items-center justify-between gap-3">
+                <DialogTitle>{t("conversation_sidebar.select_assistant")}</DialogTitle>
+                {onCreateAssistant ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void handleCreateAssistant();
+                    }}
+                    disabled={switchingAssistantId !== null || assistantActionPendingId !== null}
+                  >
+                    <Plus className="size-4" />
+                    Add
+                  </Button>
+                ) : null}
+              </div>
             </DialogHeader>
             <div className="space-y-4 px-6 py-4">
               {assistantTags.length > 0 && (
@@ -831,27 +894,63 @@ export function ConversationSidebar({
                     const switching = switchingAssistantId === assistant.id;
                     const displayName = getAssistantDisplayName(assistant.name);
                     return (
-                      <button
+                      <div
                         key={assistant.id}
-                        type="button"
-                        className="flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition hover:bg-muted"
-                        onClick={() => void handleAssistantSelect(assistant.id)}
-                        disabled={switchingAssistantId !== null}
+                        className="flex items-center gap-2 rounded-lg border px-3 py-2 transition hover:bg-muted"
                       >
-                        <UIAvatar size="sm" name={displayName} avatar={assistant.avatar} />
-                        <span className="min-w-0 flex-1 truncate text-sm">{displayName}</span>
-                        {selected && !switching && (
-                          <Badge variant="secondary" className="gap-1">
-                            <Check className="size-3" />
-                            {t("conversation_sidebar.current")}
-                          </Badge>
-                        )}
-                        {switching && (
-                          <Badge variant="secondary" className="text-xs">
-                            {t("conversation_sidebar.switching")}
-                          </Badge>
-                        )}
-                      </button>
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          onClick={() => void handleAssistantSelect(assistant.id)}
+                          disabled={switchingAssistantId !== null || assistantActionPendingId !== null}
+                        >
+                          <UIAvatar size="sm" name={displayName} avatar={assistant.avatar} />
+                          <span className="min-w-0 flex-1 truncate text-sm">{displayName}</span>
+                          {selected && !switching && (
+                            <Badge variant="secondary" className="gap-1">
+                              <Check className="size-3" />
+                              {t("conversation_sidebar.current")}
+                            </Badge>
+                          )}
+                          {switching && (
+                            <Badge variant="secondary" className="text-xs">
+                              {t("conversation_sidebar.switching")}
+                            </Badge>
+                          )}
+                        </button>
+                        {onEditAssistant ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              void handleEditAssistant(assistant.id);
+                            }}
+                            disabled={switchingAssistantId !== null || assistantActionPendingId !== null}
+                            title="Edit assistant"
+                            aria-label="Edit assistant"
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                        ) : null}
+                        {onDeleteAssistant ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              void handleDeleteAssistant(assistant.id);
+                            }}
+                            disabled={assistants.length <= 1 || switchingAssistantId !== null || assistantActionPendingId !== null}
+                            title="Delete assistant"
+                            aria-label="Delete assistant"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        ) : null}
+                      </div>
                     );
                   })}
                   {filteredAssistants.length === 0 && (
@@ -997,3 +1096,10 @@ export function ConversationSidebar({
     </Sidebar>
   );
 }
+
+
+
+
+
+
+

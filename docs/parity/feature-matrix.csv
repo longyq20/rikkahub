@@ -33,3 +33,6 @@ EXT_007,TTSèƒ½åŠ›,app/ui/pages/setting/SettingTTSPage,tts module,æš‚æ— web API,ç
 EXT_008,Shareèƒ½åŠ›,app/ui/pages/share,Android intent,æš‚æ— web API,ç¼ºå¤±,ç¼ºå¤±,å¹³å°å·®å¼‚éœ€æ›¿ä»£å®ç°,P2,å®šä¹‰Webå¯æ›¿ä»£åˆ†äº«æµç¨‹
 EXT_009,WebViewé¡µé¢,app/ui/pages/webview,embedded webview,ä¸é€‚ç”¨äºweb,ä¸é€‚ç”¨,ä¸é€‚ç”¨,å¹³å°å·®å¼‚éœ€æ›¿ä»£å®ç°,P2,æ˜ç¡®é™çº§ç­–ç•¥å¹¶æ–‡æ¡£åŒ–
 
+AST_001,AssistantÅäÖÃ»ù´¡×Ö¶Î¶ÔÆë,app/ui/pages/assistant/detail/AssistantBasicPage.kt,settings.assistants[],/api/settings/replace + /api/settings/assistant/model,ÒÑÊµÏÖ(½á¹¹»¯±à¼­),ÒÑÊµÏÖ,ÎŞ,P1,¿ÉÔÚWebÍêÕû±à¼­²¢±£´æ»ù´¡×Ö¶ÎÇÒÁÄÌì¼´Ê±ÉúĞ§
+AST_002,Assistant PromptÓëÇëÇó¸²¸Ç,AssistantPromptPage.kt + AssistantRequestPage.kt,settings.assistants[].systemPrompt/messageTemplate/quickMessages/customHeaders/customBodies,/api/settings/replace,ÒÑÊµÏÖ(½á¹¹»¯+JSON),ÒÑÊµÏÖ,ÎŞ,P1,systemPrompt/template/quickMessages¼°ÇëÇó¸²Ğ´¿ÉÅäÖÃ²¢ÉúĞ§
+AST_003,AssistantÀ©Õ¹½á¹¹»¯±à¼­,presetMessages/regexes/avatar/background,settings.assistants[],,²¿·ÖÊµÏÖ(JSON¶µµ×),ÒÑÊµÏÖ(×Ö¶Î¿É¶ÁÈ¡),Ç°¶ËÈ±Ê§,P2,²¹Æë½á¹¹»¯UIºóÎŞĞèÊÖ¸ÄJSON¼´¿ÉÍê³ÉÅäÖÃ

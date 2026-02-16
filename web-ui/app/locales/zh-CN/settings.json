@@ -1,0 +1,52 @@
+{
+  "hub": {
+    "meta": {
+      "title": "设置"
+    },
+    "header": {
+      "back": "返回聊天",
+      "title": "设置",
+      "description": "配置可移植后端与 WebUI 功能"
+    },
+    "sections": {
+      "search": {
+        "title": "搜索",
+        "description": "配置联网搜索开关与服务选择。"
+      },
+      "providers": {
+        "title": "供应商与模型",
+        "description": "配置供应商 baseUrl/apiKey 与模型能力。"
+      },
+      "assistants": {
+        "title": "助手",
+        "description": "管理助手档案与助手级生成参数。"
+      },
+      "mcp": {
+        "title": "MCP",
+        "description": "管理 MCP 服务器及工具启用/审批设置。"
+      },
+      "prompts": {
+        "title": "提示词",
+        "description": "管理模式注入与 Lorebook 模板。"
+      },
+      "memory": {
+        "title": "记忆",
+        "description": "按助手管理长期记忆条目。"
+      },
+      "backup": {
+        "title": "备份",
+        "description": "导入/导出可移植 zip 备份。"
+      },
+      "advanced": {
+        "title": "高级",
+        "description": "原始 settings.json 编辑器（高风险）。"
+      }
+    },
+    "tips": {
+      "title": "提示",
+      "item_1": "设置通过后端 SSE 生效；如界面未刷新可手动重载。",
+      "item_2": "避免在截图或日志中暴露密钥。",
+      "item_3": "修改高级设置前建议先导出备份。"
+    }
+  }
+}
