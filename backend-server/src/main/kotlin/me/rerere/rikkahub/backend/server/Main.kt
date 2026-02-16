@@ -1,4 +1,4 @@
-﻿package me.rerere.rikkahub.backend.server
+package me.rerere.rikkahub.backend.server
 
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -92,6 +92,7 @@ fun Application.rikkaBackendModule(config: ServerConfig = ServerConfig.fromEnvir
             if (config.jwtEnabled) {
                 authenticate("auth-jwt") {
                     registerSettingsRoutes(settingsRepository)
+                    registerMemoryRoutes(settingsRepository, memoryRepository)
                     registerConversationRoutes(settingsRepository, conversationRepository, conversationEngine)
                     registerFileRoutes(config, fileRepository)
                     registerAssetsRoutes(config)
@@ -99,6 +100,7 @@ fun Application.rikkaBackendModule(config: ServerConfig = ServerConfig.fromEnvir
                 }
             } else {
                 registerSettingsRoutes(settingsRepository)
+                registerMemoryRoutes(settingsRepository, memoryRepository)
                 registerConversationRoutes(settingsRepository, conversationRepository, conversationEngine)
                 registerFileRoutes(config, fileRepository)
                 registerAssetsRoutes(config)

@@ -1,4 +1,4 @@
-﻿package me.rerere.rikkahub.backend.server
+package me.rerere.rikkahub.backend.server
 
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -7,6 +7,7 @@ import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -90,6 +91,55 @@ class ApiParityIntegrationTest {
         }
     }
 
+
+    @Test
+    fun memoryRoutes_crudAndAssistantScope() {
+        val fixture = createFixture()
+        val assistantId = fixture.settingsRepository.currentAssistantId()
+
+        try {
+            testApplication {
+                application { rikkaBackendModule(fixture.config) }
+
+                val createResponse = client.post("/api/memory") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"assistantId":"$assistantId","content":"remember this"}""")
+                }
+                assertEquals(HttpStatusCode.Created, createResponse.status)
+                val createBody = createResponse.bodyAsJsonObject()
+                val memoryId = createBody.long("id")
+                assertEquals("remember this", createBody.string("content"))
+
+                val listResponse = client.get("/api/memory?assistantId=$assistantId")
+                assertEquals(HttpStatusCode.OK, listResponse.status)
+                val listItems = listResponse.bodyAsJsonObject().array("items")
+                assertEquals(1, listItems.size)
+                assertEquals(memoryId, listItems.objectAt(0).long("id"))
+
+                val updateResponse = client.put("/api/memory/$memoryId") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"assistantId":"$assistantId","content":"updated memory"}""")
+                }
+                assertEquals(HttpStatusCode.OK, updateResponse.status)
+                assertEquals("updated memory", updateResponse.bodyAsJsonObject().string("content"))
+
+                val wrongAssistantResponse = client.put("/api/memory/$memoryId") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"assistantId":"00000000-0000-0000-0000-000000000000","content":"forbidden"}""")
+                }
+                assertEquals(HttpStatusCode.NotFound, wrongAssistantResponse.status)
+
+                val deleteResponse = client.delete("/api/memory/$memoryId?assistantId=$assistantId")
+                assertEquals(HttpStatusCode.OK, deleteResponse.status)
+
+                val emptyAfterDelete = client.get("/api/memory?assistantId=$assistantId")
+                assertEquals(HttpStatusCode.OK, emptyAfterDelete.status)
+                assertEquals(0, emptyAfterDelete.bodyAsJsonObject().array("items").size)
+            }
+        } finally {
+            fixture.cleanup()
+        }
+    }
     @Test
     fun authTokenAndJwtProtection_workWhenEnabled() {
         val fixture = createFixture(jwtEnabled = true, accessPassword = "secret-pass")
