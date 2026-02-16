@@ -30,3 +30,5 @@ gradle-*-bin.zip
 # Web dist branch local artifacts
 dist/
 .claude/
+
+web/

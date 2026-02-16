@@ -1,4 +1,4 @@
-﻿# RikkaHub WebDist
+# RikkaHub WebDist
 
 [中文文档](README_ZH_CN.md) | English
 
@@ -72,7 +72,7 @@ Run:
 - `PORT` default `8080`
 - `DATA_DIR` default `data`
 - `WEB_UI_DIR` default `web-ui/build/client`
-- `ASSETS_DIR` default `app/src/main/assets`
+- `ASSETS_DIR` default `assets`
 - `JWT_ENABLED` default `false`
 - `ACCESS_PASSWORD` default empty
 

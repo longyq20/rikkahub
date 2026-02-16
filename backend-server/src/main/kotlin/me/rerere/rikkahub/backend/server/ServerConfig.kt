@@ -20,7 +20,7 @@ data class ServerConfig(
             val port = env("PORT", "8080").toIntOrNull() ?: 8080
             val dataDir = Path(env("DATA_DIR", "data"))
             val webUiDir = Path(env("WEB_UI_DIR", "web-ui/build/client"))
-            val assetsDir = Path(env("ASSETS_DIR", "app/src/main/assets"))
+            val assetsDir = Path(env("ASSETS_DIR", "assets"))
             val jwtEnabled = env("JWT_ENABLED", "false").equals("true", ignoreCase = true)
             val accessPassword = env("ACCESS_PASSWORD", "")
             val uploadMaxMb = env("UPLOAD_MAX_MB", "20").toIntOrNull() ?: 20

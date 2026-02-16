@@ -51,7 +51,7 @@ if (-not $env:HOST) { $env:HOST = "0.0.0.0" }
 if (-not $env:PORT) { $env:PORT = "8080" }
 $env:DATA_DIR = Resolve-RepoPath -Value $env:DATA_DIR -FallbackRelative "data"
 $env:WEB_UI_DIR = Resolve-RepoPath -Value $env:WEB_UI_DIR -FallbackRelative "web-ui/build/client"
-$env:ASSETS_DIR = Resolve-RepoPath -Value $env:ASSETS_DIR -FallbackRelative "app/src/main/assets"
+$env:ASSETS_DIR = Resolve-RepoPath -Value $env:ASSETS_DIR -FallbackRelative "assets"
 if (-not $env:JWT_ENABLED) { $env:JWT_ENABLED = "false" }
 if (-not $env:ACCESS_PASSWORD) { $env:ACCESS_PASSWORD = "" }
 

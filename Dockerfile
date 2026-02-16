@@ -17,14 +17,14 @@ COPY backend-core/ backend-core/
 COPY backend-storage-sqlite/ backend-storage-sqlite/
 COPY backend-migration/ backend-migration/
 COPY backend-server/ backend-server/
-COPY app/src/main/assets/ app/src/main/assets/
+COPY assets/ assets/
 RUN chmod +x gradlew
 RUN ./gradlew --settings-file settings.backend.gradle.kts :backend-server:installDist --no-daemon
 
 FROM eclipse-temurin:17-jre AS runtime
 WORKDIR /app
 COPY --from=backend-build /app/backend-server/build/install/backend-server /app/backend-server
-COPY --from=backend-build /app/app/src/main/assets /app/assets
+COPY --from=backend-build /app/assets /app/assets
 COPY --from=webui-build /app/web-ui/build/client /app/web-ui
 
 ENV HOST=0.0.0.0

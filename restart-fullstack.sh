@@ -40,7 +40,7 @@ export HOST="${HOST:-0.0.0.0}"
 export PORT="${PORT:-8080}"
 export DATA_DIR="$(resolve_repo_path "${DATA_DIR:-}" "data")"
 export WEB_UI_DIR="$(resolve_repo_path "${WEB_UI_DIR:-}" "web-ui/build/client")"
-export ASSETS_DIR="$(resolve_repo_path "${ASSETS_DIR:-}" "app/src/main/assets")"
+export ASSETS_DIR="$(resolve_repo_path "${ASSETS_DIR:-}" "assets")"
 export JWT_ENABLED="${JWT_ENABLED:-false}"
 export ACCESS_PASSWORD="${ACCESS_PASSWORD:-}"
 

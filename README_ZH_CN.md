@@ -1,4 +1,4 @@
-﻿# RikkaHub WebDist（可移植版）
+# RikkaHub WebDist（可移植版）
 
 中文 | [English](README.md)
 
@@ -71,7 +71,7 @@ docker compose down
 - `PORT` 默认 `8080`
 - `DATA_DIR` 默认 `data`
 - `WEB_UI_DIR` 默认 `web-ui/build/client`
-- `ASSETS_DIR` 默认 `app/src/main/assets`
+- `ASSETS_DIR` 默认 `assets`
 - `JWT_ENABLED` 默认 `false`
 - `ACCESS_PASSWORD` 默认空
 

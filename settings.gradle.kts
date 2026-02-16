@@ -19,6 +19,7 @@ pluginManagement {
         }
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -29,15 +30,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "rikkahub"
-include(":app")
-include(":highlight")
-include(":ai")
-include(":search")
-include(":tts")
-include(":common")
-include(":document")
-include(":web")
+rootProject.name = "rikkahub-webdist"
 include(":backend-core")
 include(":backend-storage-sqlite")
 include(":backend-migration")

@@ -60,5 +60,5 @@ tasks.named<JavaExec>("run") {
 
     environment("DATA_DIR", resolveEnvPath("DATA_DIR", "data"))
     environment("WEB_UI_DIR", resolveEnvPath("WEB_UI_DIR", "web-ui/build/client"))
-    environment("ASSETS_DIR", resolveEnvPath("ASSETS_DIR", "app/src/main/assets"))
+    environment("ASSETS_DIR", resolveEnvPath("ASSETS_DIR", "assets"))
 }

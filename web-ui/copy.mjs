@@ -8,7 +8,7 @@ import {
 import { dirname, join } from 'node:path';
 
 const SOURCE_DIR = './build/client';
-const TARGET_DIR = '../web/src/main/resources/static';
+const TARGET_DIR = '../dist/web-ui-static';
 
 function copyDirectory(src, dest) {
   mkdirSync(dest, { recursive: true });
