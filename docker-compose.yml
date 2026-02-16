@@ -1,9 +1,9 @@
 ﻿services:
   rikkahub:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: rikkahub:portable
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    image: ghcr.io/longyq20/rikkahub:webdist
     container_name: rikkahub
     ports:
       - "8080:8080"
@@ -14,7 +14,6 @@
       WEB_UI_DIR: /app/web-ui
       ASSETS_DIR: /app/assets
       JWT_ENABLED: "false"
-      ACCESS_PASSWORD: ""
     volumes:
       - ./data:/data
     restart: unless-stopped
