@@ -1,4 +1,6 @@
-import * as React from "react";\n\nimport { Link } from "react-router";
+import * as React from "react";
+
+import { Link } from "react-router";
 
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
@@ -20,6 +22,7 @@ import {
   LogOut,
   Sun,
   Trash2,
+  Settings,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -123,8 +126,8 @@ const COLOR_THEME_OPTIONS: Array<{
 ];
 
 const LANGUAGE_OPTIONS = [
-  { value: "zh-CN", label: "绠€浣撲腑鏂? },
-  { value: "en-US", label: "English" },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'en-US', label: 'English' },
 ] as const;
 
 type ConversationListItem =
