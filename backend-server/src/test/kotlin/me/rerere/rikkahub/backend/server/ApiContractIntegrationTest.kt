@@ -161,6 +161,13 @@ class ApiContractIntegrationTest {
                     val second = readSseEvent(settingsSse.reader)
                     assertEquals("update", second.event)
                     assertTrue(second.data.toJsonObject().boolean("enableWebSearch"))
+
+                    val invalidSearchIndex = postJson(
+                        httpClient,
+                        "$baseUrl/api/settings/search/service",
+                        """{"index":999}""",
+                    )
+                    assertEquals(400, invalidSearchIndex.statusCode())
                 }
             }
         } finally {
@@ -168,6 +175,34 @@ class ApiContractIntegrationTest {
         }
     }
 
+
+    @Test
+    fun settingsRoutes_validateMcpAndInjectionReferences() {
+        val fixture = createFixture()
+        val assistantId = fixture.settingsRepository.currentAssistantId()
+
+        try {
+            testApplication {
+                application { rikkaBackendModule(fixture.config) }
+
+                val unknownMcp = client.post("/api/settings/assistant/mcp") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"assistantId":"$assistantId","mcpServerIds":["00000000-0000-0000-0000-000000000000"]}""")
+                }
+                assertEquals(HttpStatusCode.BadRequest, unknownMcp.status)
+
+                val unknownInjection = client.post("/api/settings/assistant/injections") {
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        """{"assistantId":"$assistantId","modeInjectionIds":["00000000-0000-0000-0000-000000000000"],"lorebookIds":["11111111-1111-1111-1111-111111111111"]}"""
+                    )
+                }
+                assertEquals(HttpStatusCode.BadRequest, unknownInjection.status)
+            }
+        } finally {
+            fixture.cleanup()
+        }
+    }
     @Test
     fun conversationStreams_emitInvalidateSnapshotNodeUpdateAndError() {
         val fixture = createFixture()
