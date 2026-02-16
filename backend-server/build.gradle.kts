@@ -1,3 +1,6 @@
+import java.io.File
+import org.gradle.api.tasks.JavaExec
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -46,3 +49,16 @@ dependencies {
     testImplementation(libs.ktor.server.test.host)
 }
 
+tasks.named<JavaExec>("run") {
+    val rootDirPath = rootProject.projectDir
+
+    fun resolveEnvPath(name: String, fallbackRelative: String): String {
+        val raw = System.getenv(name)?.takeIf { it.isNotBlank() } ?: fallbackRelative
+        val path = File(raw)
+        return if (path.isAbsolute) path.absolutePath else rootDirPath.resolve(raw).absolutePath
+    }
+
+    environment("DATA_DIR", resolveEnvPath("DATA_DIR", "data"))
+    environment("WEB_UI_DIR", resolveEnvPath("WEB_UI_DIR", "web-ui/build/client"))
+    environment("ASSETS_DIR", resolveEnvPath("ASSETS_DIR", "app/src/main/assets"))
+}

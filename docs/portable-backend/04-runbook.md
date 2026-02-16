@@ -2,7 +2,7 @@
 
 ## 运行前提
 - JDK 17（建议 OpenJDK/Temurin）。
-- 可选：Bun（仅在需要本地构建 `web-ui` 时）。
+- Node.js + npm（用于构建 `web-ui`）。
 - 默认后端端口：`8080`。
 
 ## 环境变量
@@ -16,7 +16,17 @@
 - `UPLOAD_MAX_MB`：默认 `20`
 - `APP_VERSION`：默认 `dev`
 
-## Windows 启动
+## Windows 一键构建并重启（推荐）
+```powershell
+./restart-fullstack.ps1
+```
+
+### Windows 脚本参数
+- `-SkipFrontendBuild`：跳过 `web-ui` 构建。
+- `-SkipBackendBuild`：跳过后端 classes 构建。
+- `-Foreground`：前台运行后端（默认后台运行并写日志到 `.tmp-backend/`）。
+
+## Windows 启动（兼容旧方式）
 ```powershell
 ./run-backend.ps1
 ```
@@ -25,7 +35,13 @@
 ./gradlew.bat :backend-server:run --no-daemon
 ```
 
-## Linux 启动
+## Linux 一键构建并重启（推荐）
+```bash
+chmod +x restart-fullstack.sh
+./restart-fullstack.sh
+```
+
+## Linux 启动（兼容旧方式）
 ```bash
 chmod +x run-backend.sh
 ./run-backend.sh
@@ -38,8 +54,8 @@ chmod +x run-backend.sh
 ## 本地构建 web-ui（可选）
 ```bash
 cd web-ui
-bun install --frozen-lockfile
-bun run build
+npm install
+npm run build
 ```
 构建产物目录：`web-ui/build/client`。
 

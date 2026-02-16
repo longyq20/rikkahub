@@ -25,3 +25,4 @@ gradle-*-bin.zip
 .tmp-backend-run.out.log
 .tmp-backend-run.err.log
 **/.tmp-backend-data*/
+.tmp-backend/
