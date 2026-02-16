@@ -1,0 +1,25 @@
+.git
+.github
+.gradle
+.kotlin
+.tools
+.tmp-backend
+.tmp-backend-data
+build
+**/build
+
+# Local data/runtime artifacts
+data
+
+# Local offline archives
+openjdk-*.zip
+gradle-*-bin.zip
+
+# Release bundle is not needed for source-image build
+dist
+
+# Local temp / logs
+*.log
+
+# Optional local dependency caches
+**/node_modules
