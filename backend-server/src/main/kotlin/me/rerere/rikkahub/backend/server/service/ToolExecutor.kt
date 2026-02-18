@@ -266,16 +266,19 @@ class PortableToolExecutor(
 
         val resultSize = searchResultSize(settings)
         val service = resolveSearchService(settings)
+        val outboundClient = httpClientWithProxy(httpClient, service?.proxy)
 
         return when (service?.type) {
-            "searxng" -> executeSearXngSearch(query, service.options, resultSize)
-            else -> executeDuckDuckGoSearch(query, resultSize)
+            "exa" -> executeExaSearch(query, service.options, resultSize, outboundClient)
+            "searxng" -> executeSearXngSearch(query, service.options, resultSize, outboundClient)
+            else -> executeDuckDuckGoSearch(query, resultSize, outboundClient)
         }
     }
 
     private data class SearchServiceSelection(
         val type: String,
         val options: JsonObject,
+        val proxy: ProviderProxyConfig? = null,
     )
 
     private fun resolveSearchService(settings: JsonObject): SearchServiceSelection? {
@@ -288,7 +291,11 @@ class PortableToolExecutor(
         val index = selected.coerceIn(0, services.lastIndex)
         val options = services[index]
         val type = options.stringValue("type")?.trim()?.lowercase().orEmpty()
-        return SearchServiceSelection(type = type, options = options)
+        return SearchServiceSelection(
+            type = type,
+            options = options,
+            proxy = parseProviderProxy(options),
+        )
     }
 
     private fun searchResultSize(settings: JsonObject): Int {
@@ -297,7 +304,11 @@ class PortableToolExecutor(
         return value.coerceAtLeast(1)
     }
 
-    private suspend fun executeDuckDuckGoSearch(query: String, resultSize: Int): JsonObject {
+    private suspend fun executeDuckDuckGoSearch(
+        query: String,
+        resultSize: Int,
+        outboundClient: JdkHttpClient,
+    ): JsonObject {
         val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8)
         val request = HttpRequest.newBuilder()
             .uri(URI.create("https://api.duckduckgo.com/?q=$encoded&format=json&no_html=1&skip_disambig=1"))
@@ -307,7 +318,7 @@ class PortableToolExecutor(
             .build()
 
         val response = withContext(Dispatchers.IO) {
-            httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+            outboundClient.send(request, HttpResponse.BodyHandlers.ofString())
         }
         require(response.statusCode() in 200..299) { "search request failed (${response.statusCode()})" }
 
@@ -336,6 +347,7 @@ class PortableToolExecutor(
         query: String,
         options: JsonObject,
         resultSize: Int,
+        outboundClient: JdkHttpClient,
     ): JsonObject {
         val baseUrl = options.stringValue("url")?.trim()?.trimEnd('/').orEmpty()
         require(baseUrl.isNotBlank()) { "SearXNG URL cannot be empty" }
@@ -366,7 +378,7 @@ class PortableToolExecutor(
         }
 
         val response = withContext(Dispatchers.IO) {
-            httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
+            outboundClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
         }
         require(response.statusCode() in 200..299) {
             val body = response.body().take(256)
@@ -382,6 +394,80 @@ class PortableToolExecutor(
                 val title = item.stringValue("title")?.trim().orEmpty()
                 val url = item.stringValue("url")?.trim().orEmpty()
                 val text = item.stringValue("content")?.trim().orEmpty()
+
+                JsonObject(
+                    mapOf(
+                        "id" to JsonPrimitive(randomId().take(6)),
+                        "index" to JsonPrimitive(index + 1),
+                        "title" to JsonPrimitive(title.ifBlank { url }),
+                        "url" to JsonPrimitive(url),
+                        "text" to JsonPrimitive(text),
+                    )
+                )
+            }
+
+        return JsonObject(
+            mapOf(
+                "answer" to JsonPrimitive(""),
+                "items" to JsonArray(results),
+            )
+        )
+    }
+
+    private suspend fun executeExaSearch(
+        query: String,
+        options: JsonObject,
+        resultSize: Int,
+        outboundClient: JdkHttpClient,
+    ): JsonObject {
+        val apiKey = options.stringValue("apiKey")?.trim().orEmpty()
+        require(apiKey.isNotBlank()) { "Exa API key is required" }
+        val rawEndpoint = options.stringValue("url")?.trim().orEmpty()
+        val endpoint = when {
+            rawEndpoint.isBlank() -> "https://api.exa.ai/search"
+            rawEndpoint.endsWith("/search") -> rawEndpoint
+            else -> "${rawEndpoint.trimEnd('/')}/search"
+        }
+
+        val requestBody = JsonObject(
+            mapOf(
+                "query" to JsonPrimitive(query),
+                "numResults" to JsonPrimitive(resultSize),
+                "contents" to JsonObject(
+                    mapOf(
+                        "text" to JsonPrimitive(true),
+                    )
+                ),
+            )
+        ).toString()
+
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create(endpoint))
+            .timeout(Duration.ofSeconds(30))
+            .header("User-Agent", "RikkaHub-Portable/1.0")
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer $apiKey")
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+            .build()
+
+        val response = withContext(Dispatchers.IO) {
+            outboundClient.send(request, HttpResponse.BodyHandlers.ofString())
+        }
+        require(response.statusCode() in 200..299) {
+            val body = response.body().take(256)
+            "Exa request failed (${response.statusCode()}): $body"
+        }
+
+        val body = (AppJson.parseToJsonElement(response.body()) as? JsonObject) ?: JsonObject(emptyMap())
+        val results = body.arrayValue("results")
+            ?.mapNotNull { it as? JsonObject }
+            .orEmpty()
+            .take(resultSize)
+            .mapIndexed { index, item ->
+                val url = item.stringValue("url")?.trim().orEmpty()
+                val title = item.stringValue("title")?.trim().orEmpty()
+                val text = item.stringValue("text")?.trim().orEmpty()
 
                 JsonObject(
                     mapOf(

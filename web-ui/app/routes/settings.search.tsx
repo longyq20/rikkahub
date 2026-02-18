@@ -18,6 +18,15 @@ export function meta() {
 }
 
 type AnyRecord = Record<string, unknown>;
+type ProxyType = "none" | "http" | "socks5";
+
+interface ServiceProxyDraft {
+  type: ProxyType;
+  address: string;
+  port: number;
+  username: string;
+  password: string;
+}
 
 type SearchServiceType =
   | "bing_local"
@@ -52,6 +61,12 @@ const SEARCH_SERVICE_TYPES: Array<{ type: SearchServiceType; label: string }> = 
   { type: "bocha", label: "Bocha" },
 ];
 
+const SEARCH_PROXY_TYPES: Array<{ value: ProxyType; label: string }> = [
+  { value: "none", label: "Direct" },
+  { value: "http", label: "HTTP Proxy" },
+  { value: "socks5", label: "SOCKS5 Proxy" },
+];
+
 function safeStringify(value: unknown): string {
   try {
     return JSON.stringify(value, null, 2);
@@ -77,38 +92,108 @@ function readResultSize(settings: AnyRecord | null): number {
 
 function createSearchServiceTemplate(type: SearchServiceType): AnyRecord {
   const id = uuidv4();
+  const proxy = buildDefaultProxy();
 
   switch (type) {
     case "bing_local":
-      return { id, type };
+      return { id, type, proxy };
     case "zhipu":
-      return { id, type, apiKey: "" };
+      return { id, type, apiKey: "", proxy };
     case "tavily":
-      return { id, type, apiKey: "", depth: "advanced" };
+      return { id, type, apiKey: "", depth: "advanced", proxy };
     case "exa":
-      return { id, type, apiKey: "" };
+      return { id, type, apiKey: "", proxy };
     case "searxng":
-      return { id, type, url: "", engines: "", language: "", username: "", password: "" };
+      return { id, type, url: "", engines: "", language: "", username: "", password: "", proxy };
     case "linkup":
-      return { id, type, apiKey: "", depth: "standard" };
+      return { id, type, apiKey: "", depth: "standard", proxy };
     case "brave":
-      return { id, type, apiKey: "" };
+      return { id, type, apiKey: "", proxy };
     case "metaso":
-      return { id, type, apiKey: "" };
+      return { id, type, apiKey: "", proxy };
     case "ollama":
-      return { id, type, apiKey: "" };
+      return { id, type, apiKey: "", proxy };
     case "perplexity":
-      return { id, type, apiKey: "", maxTokensPerPage: 1024 };
+      return { id, type, apiKey: "", maxTokensPerPage: 1024, proxy };
     case "firecrawl":
-      return { id, type, apiKey: "" };
+      return { id, type, apiKey: "", proxy };
     case "jina":
-      return { id, type, apiKey: "" };
+      return { id, type, apiKey: "", proxy };
     case "bocha":
-      return { id, type, apiKey: "", summary: true };
+      return { id, type, apiKey: "", summary: true, proxy };
     case "rikkahub":
-      return { id, type, apiKey: "", depth: "standard" };
+      return { id, type, apiKey: "", depth: "standard", proxy };
     default:
-      return { id, type };
+      return { id, type, proxy };
+  }
+}
+
+function buildDefaultProxy(): AnyRecord {
+  return {
+    type: "none",
+    address: "",
+    port: 0,
+    username: "",
+    password: "",
+  };
+}
+
+function normalizeProxyType(value: unknown): ProxyType {
+  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (raw === "http" || raw === "socks5") return raw;
+  return "none";
+}
+
+function readProxy(service: AnyRecord): ServiceProxyDraft {
+  const source = (service.proxy as AnyRecord | undefined) ?? {};
+  const portSource = source.port;
+  const port =
+    typeof portSource === "number"
+      ? portSource
+      : typeof portSource === "string"
+        ? Number.parseInt(portSource, 10)
+        : 0;
+
+  return {
+    type: normalizeProxyType(source.type),
+    address: typeof source.address === "string" ? source.address : "",
+    port: Number.isFinite(port) ? port : 0,
+    username: typeof source.username === "string" ? source.username : "",
+    password: typeof source.password === "string" ? source.password : "",
+  };
+}
+
+function withUpdatedProxy(service: AnyRecord, proxy: ServiceProxyDraft): AnyRecord {
+  const nextProxy: AnyRecord =
+    proxy.type === "none"
+      ? {
+          type: "none",
+          address: "",
+          port: 0,
+          username: "",
+          password: "",
+        }
+      : {
+          type: proxy.type,
+          address: proxy.address,
+          port: proxy.port > 0 ? proxy.port : 0,
+          username: proxy.username,
+          password: proxy.password,
+        };
+
+  return {
+    ...service,
+    proxy: nextProxy,
+  };
+}
+
+function parseServiceObject(raw: string): AnyRecord | null {
+  try {
+    const parsed = parseJson(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as AnyRecord;
+  } catch {
+    return null;
   }
 }
 
@@ -229,6 +314,32 @@ export default function SettingsSearchPage() {
       next.splice(to, 0, item);
       setServiceTexts(next);
       setSelectedDraft((prev) => moveIndexSelection(prev, from, to));
+      setDirty(true);
+    },
+    [serviceTexts],
+  );
+
+  const updateServiceObject = React.useCallback(
+    (index: number, updater: (service: AnyRecord) => AnyRecord) => {
+      const raw = serviceTexts[index];
+      if (typeof raw !== "string") return;
+
+      let parsed: unknown;
+      try {
+        parsed = parseJson(raw);
+      } catch {
+        toast.error(`Service #${index + 1} JSON is invalid`);
+        return;
+      }
+
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        toast.error(`Service #${index + 1} must be a JSON object`);
+        return;
+      }
+
+      const next = serviceTexts.slice();
+      next[index] = safeStringify(updater({ ...(parsed as AnyRecord) }));
+      setServiceTexts(next);
       setDirty(true);
     },
     [serviceTexts],
@@ -477,6 +588,129 @@ export default function SettingsSearchPage() {
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
+
+                    {(() => {
+                      const service = parseServiceObject(raw);
+                      if (!service) return null;
+                      const proxy = readProxy(service);
+
+                      return (
+                        <div className="mt-3 rounded-md border p-3">
+                          <div className="text-xs font-medium text-muted-foreground">Proxy</div>
+                          <div className="mt-2 grid gap-3 md:grid-cols-2">
+                            <div>
+                              <div className="mb-1 text-xs text-muted-foreground">Type</div>
+                              <Select
+                                value={proxy.type}
+                                onValueChange={(value) => {
+                                  updateServiceObject(index, (current) =>
+                                    withUpdatedProxy(current, {
+                                      ...proxy,
+                                      type: normalizeProxyType(value),
+                                    }),
+                                  );
+                                }}
+                                disabled={busy || !settings}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select proxy type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SEARCH_PROXY_TYPES.map((proxyType) => (
+                                    <SelectItem key={proxyType.value} value={proxyType.value}>
+                                      {proxyType.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {proxy.type !== "none" ? (
+                              <>
+                                <div>
+                                  <div className="mb-1 text-xs text-muted-foreground">Address</div>
+                                  <input
+                                    type="text"
+                                    value={proxy.address}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
+                                      updateServiceObject(index, (current) =>
+                                        withUpdatedProxy(current, {
+                                          ...proxy,
+                                          address: value,
+                                        }),
+                                      );
+                                    }}
+                                    disabled={busy || !settings}
+                                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                    placeholder="127.0.0.1"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="mb-1 text-xs text-muted-foreground">Port</div>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={65535}
+                                    value={proxy.port > 0 ? String(proxy.port) : ""}
+                                    onChange={(event) => {
+                                      const value = Number.parseInt(event.target.value, 10);
+                                      updateServiceObject(index, (current) =>
+                                        withUpdatedProxy(current, {
+                                          ...proxy,
+                                          port: Number.isFinite(value) ? value : 0,
+                                        }),
+                                      );
+                                    }}
+                                    disabled={busy || !settings}
+                                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                    placeholder="7890"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="mb-1 text-xs text-muted-foreground">Username</div>
+                                  <input
+                                    type="text"
+                                    value={proxy.username}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
+                                      updateServiceObject(index, (current) =>
+                                        withUpdatedProxy(current, {
+                                          ...proxy,
+                                          username: value,
+                                        }),
+                                      );
+                                    }}
+                                    disabled={busy || !settings}
+                                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="mb-1 text-xs text-muted-foreground">Password</div>
+                                  <input
+                                    type="password"
+                                    value={proxy.password}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
+                                      updateServiceObject(index, (current) =>
+                                        withUpdatedProxy(current, {
+                                          ...proxy,
+                                          password: value,
+                                        }),
+                                      );
+                                    }}
+                                    disabled={busy || !settings}
+                                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="self-end text-xs text-muted-foreground">Direct connection (no proxy)</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <Textarea
                       value={raw}
