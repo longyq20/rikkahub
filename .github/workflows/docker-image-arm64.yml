@@ -1,4 +1,4 @@
-name: Build And Publish Docker Image (arm64)
+﻿name: Build And Publish Docker Image (arm64)
 
 on:
   push:
@@ -51,3 +51,11 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.vars.outputs.image }}:webdist-arm64
             ${{ env.REGISTRY }}/${{ steps.vars.outputs.image }}:${{ github.sha }}-arm64
           provenance: false
+
+      - name: Smoke check arm64 runtime
+        shell: bash
+        run: |
+          docker run --rm --platform linux/arm64 \
+            --entrypoint java \
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.image }}:webdist-arm64 \
+            -version

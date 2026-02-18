@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+﻿# syntax=docker/dockerfile:1.7
 
 ARG BUILDPLATFORM=linux/amd64
 ARG TARGETPLATFORM=linux/amd64
@@ -29,7 +29,6 @@ WORKDIR /app
 COPY --from=backend-build /app/backend-server/build/install/backend-server /app/backend-server
 COPY --from=backend-build /app/assets /app/assets
 COPY --from=webui-build /app/web-ui/build/client /app/web-ui
-RUN sed -i 's/\r$//' /app/backend-server/bin/backend-server && chmod +x /app/backend-server/bin/backend-server
 
 ENV HOST=0.0.0.0
 ENV PORT=8080
@@ -41,4 +40,4 @@ ENV ACCESS_PASSWORD=
 
 VOLUME ["/data"]
 EXPOSE 8080
-ENTRYPOINT ["/app/backend-server/bin/backend-server"]
+ENTRYPOINT ["java","-cp","/app/backend-server/lib/*","me.rerere.rikkahub.backend.server.MainKt"]

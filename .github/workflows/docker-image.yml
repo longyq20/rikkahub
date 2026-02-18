@@ -1,4 +1,4 @@
-name: Build And Publish Docker Image
+﻿name: Build And Publish Docker Image
 
 on:
   push:
@@ -27,6 +27,9 @@ jobs:
           IMAGE_REPO="${GITHUB_REPOSITORY,,}"
           echo "image=${IMAGE_REPO}" >> "$GITHUB_OUTPUT"
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -37,11 +40,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image from source
+      - name: Build and push multi-arch image from source
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.vars.outputs.image }}:webdist
