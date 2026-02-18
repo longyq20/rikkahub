@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BUILDPLATFORM
-ARG TARGETPLATFORM
+ARG BUILDPLATFORM=linux/amd64
+ARG TARGETPLATFORM=linux/amd64
 
 FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS webui-build
 WORKDIR /app/web-ui
