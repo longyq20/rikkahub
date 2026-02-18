@@ -1,0 +1,77 @@
+name: Webdist Path Whitelist
+
+on:
+  push:
+    branches:
+      - webdist
+  pull_request:
+    branches:
+      - webdist
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  whitelist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate changed paths against whitelist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+            BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+          fi
+
+          HEAD_SHA="${{ github.sha }}"
+          mapfile -t CHANGED_FILES < <(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")
+
+          if [[ ${#CHANGED_FILES[@]} -eq 0 ]]; then
+            echo "No changed files to validate."
+            exit 0
+          fi
+
+          mapfile -t ALLOWLIST < .github/allowlists/webdist-paths.txt
+
+          is_allowed() {
+            local path="$1"
+            for rule in "${ALLOWLIST[@]}"; do
+              [[ -z "${rule}" || "${rule}" =~ ^# ]] && continue
+
+              if [[ "${rule}" == */ ]]; then
+                [[ "${path}" == "${rule}"* ]] && return 0
+              else
+                [[ "${path}" == "${rule}" ]] && return 0
+              fi
+            done
+            return 1
+          }
+
+          INVALID=()
+          for file in "${CHANGED_FILES[@]}"; do
+            if ! is_allowed "${file}"; then
+              INVALID+=("${file}")
+            fi
+          done
+
+          if [[ ${#INVALID[@]} -gt 0 ]]; then
+            echo "The following files are outside the webdist minimal whitelist:"
+            printf ' - %s\n' "${INVALID[@]}"
+            echo "Allowed rules are defined in .github/allowlists/webdist-paths.txt"
+            exit 1
+          fi
+
+          echo "Whitelist check passed."

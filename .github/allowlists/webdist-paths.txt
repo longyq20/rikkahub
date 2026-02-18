@@ -1,0 +1,24 @@
+# Prefix rules (end with / means path prefix)
+backend-core/
+backend-storage-sqlite/
+backend-migration/
+backend-server/
+web-ui/
+assets/
+gradle/
+.github/workflows/
+.github/allowlists/
+
+# Exact-file rules
+Dockerfile
+docker-compose.yml
+build.gradle.kts
+settings.gradle.kts
+gradle.properties
+gradlew
+gradlew.bat
+README.md
+README_ZH_CN.md
+.gitignore
+.dockerignore
+LICENSE
