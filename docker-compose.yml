@@ -1,9 +1,12 @@
-﻿services:
+services:
   rikkahub:
     # build:
     #   context: .
     #   dockerfile: Dockerfile
-    image: ghcr.io/longyq20/rikkahub:webdist
+    # Image tags:
+    # - amd64: ghcr.io/longyq20/rikkahub:webdist
+    # - arm64: ghcr.io/longyq20/rikkahub:webdist-arm64
+    image: ghcr.io/longyq20/rikkahub:${RIKKAHUB_IMAGE_TAG:-webdist}
     container_name: rikkahub
     ports:
       - "8080:8080"

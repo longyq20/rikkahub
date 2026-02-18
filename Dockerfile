@@ -1,13 +1,16 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bookworm-slim AS webui-build
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+
+FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS webui-build
 WORKDIR /app/web-ui
 COPY web-ui/package.json ./
 RUN npm install --no-audit --no-fund
 COPY web-ui/ ./
 RUN npm run build
 
-FROM gradle:8.14.3-jdk17 AS backend-build
+FROM --platform=$BUILDPLATFORM gradle:8.14.3-jdk17 AS backend-build
 WORKDIR /app
 COPY gradle/ gradle/
 COPY gradlew gradlew
@@ -21,7 +24,7 @@ COPY assets/ assets/
 RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
 RUN ./gradlew :backend-server:installDist --no-daemon --stacktrace
 
-FROM eclipse-temurin:17-jre AS runtime
+FROM --platform=$TARGETPLATFORM eclipse-temurin:17-jre AS runtime
 WORKDIR /app
 COPY --from=backend-build /app/backend-server/build/install/backend-server /app/backend-server
 COPY --from=backend-build /app/assets /app/assets
@@ -39,4 +42,3 @@ ENV ACCESS_PASSWORD=
 VOLUME ["/data"]
 EXPOSE 8080
 ENTRYPOINT ["/app/backend-server/bin/backend-server"]
-
